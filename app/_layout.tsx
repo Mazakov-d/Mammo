@@ -4,6 +4,7 @@ import { Pressable, View } from "react-native";
 import { AntDesign, Fontisto, Feather } from "@expo/vector-icons";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
+import { Colors, Layout } from "../constants/Colors";
 
 export default function RootLayout() {
   return (
@@ -19,12 +20,12 @@ export default function RootLayout() {
                   <Pressable
                     style={({ pressed }) => [
                       {
-                        width: 50,
-                        height: 50,
-                        backgroundColor: "#f88f39",
+                        width: Layout.buttonWidth,
+                        height: Layout.buttonHeight,
+                        backgroundColor: Colors.primary,
                         justifyContent: "center",
                         alignItems: "center",
-                        borderRadius: 20,
+                        borderRadius: Layout.radiusLarge,
                         opacity: pressed ? 0.5 : 1,
                       },
                     ]}
@@ -32,7 +33,7 @@ export default function RootLayout() {
                     <Fontisto
                       style={{
                         // backgroundColor:"red",
-                        padding: 10,
+                        padding: Layout.paddingSmall,
                       }}
                       name="bell"
                       size={24}
@@ -48,18 +49,18 @@ export default function RootLayout() {
                       flexDirection: "row",
                       alignItems: "center",
                       gap: 10, // Space between buttons
-                      marginRight: 5, // Optional: add some margin from screen edge
+                      marginRight: Layout.marginSmall, // Optional: add some margin from screen edge
                     }}
                   >
                     <Pressable
                       style={({ pressed }) => [
                         {
-                          width: 50,
-                          height: 50,
-                          backgroundColor: "#f88f39",
+                          width: Layout.buttonWidth,
+                          height: Layout.buttonHeight,
+                          backgroundColor: Colors.primary,
                           justifyContent: "center",
                           alignItems: "center",
-                          borderRadius: 20,
+                          borderRadius: Layout.radiusLarge,
                           opacity: pressed ? 0.5 : 1,
                         },
                       ]}
@@ -69,12 +70,12 @@ export default function RootLayout() {
                     <Pressable
                       style={({ pressed }) => [
                         {
-                          width: 50,
-                          height: 50,
-                          backgroundColor: "#f88f39",
+                          width: Layout.buttonWidth,
+                          height: Layout.buttonHeight,
+                          backgroundColor: Colors.primary,
                           justifyContent: "center",
                           alignItems: "center",
-                          borderRadius: 20,
+                          borderRadius: Layout.radiusLarge,
                           opacity: pressed ? 0.5 : 1,
                         },
                       ]}
@@ -84,6 +85,7 @@ export default function RootLayout() {
                   </View>
                 );
               },
+			  headerTitle: "",
             }}
           />
         </Stack>
