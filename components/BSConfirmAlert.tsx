@@ -83,15 +83,21 @@ const BSConfirmAlert = forwardRef<BottomSheetModal, BSConfirmAlertProps>(
 
           <View style={styles.confirmButtonWrapper}>
             <TouchableOpacity
-              style={styles.confirmButton}
+              style={[styles.confirmButton, { backgroundColor: Colors.warning }]}
               onPress={onConfirm}
               activeOpacity={0.8}
               disabled={autoPressed}
             >
+              <Animated.View
+                style={[
+                  styles.confirmButtonFill,
+                  {
+                    width: widthInterpolate,
+                    backgroundColor: Colors.danger,
+                  },
+                ]}
+              />
               <Text style={styles.confirmButtonText}>{confirmLabel}</Text>
-              <View style={styles.progressBarContainer}>
-                <Animated.View style={[styles.progressBar, { width: widthInterpolate }]} />
-              </View>
             </TouchableOpacity>
           </View>
 
@@ -108,7 +114,7 @@ export default BSConfirmAlert;
 
 const styles = StyleSheet.create({
   bottomSheetBackground: {
-    backgroundColor: Colors.sheetAltBackground,
+    backgroundColor: Colors.sheetBackground,
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
     shadowColor: Colors.black,
@@ -166,7 +172,7 @@ const styles = StyleSheet.create({
   },
   confirmButton: {
     width: "100%",
-    backgroundColor: Colors.danger,
+    backgroundColor: Colors.black,
     paddingVertical: 20,
     borderRadius: 14,
     alignItems: "center",
@@ -179,29 +185,21 @@ const styles = StyleSheet.create({
     elevation: 4,
     overflow: "hidden",
   },
+  confirmButtonFill: {
+    position: "absolute",
+    left: 0,
+    top: 0,
+    bottom: 0,
+    borderRadius: 14,
+    zIndex: 1,
+  },
   confirmButtonText: {
     color: Colors.white,
     fontSize: 19,
     fontWeight: "bold",
     letterSpacing: 0.5,
     marginBottom: 4,
-  },
-  progressBarContainer: {
-    position: "absolute",
-    left: 0,
-    bottom: 0,
-    height: 6,
-    width: "100%",
-    backgroundColor: Colors.warning,
-    borderBottomLeftRadius: 14,
-    borderBottomRightRadius: 14,
-    overflow: "hidden",
-  },
-  progressBar: {
-    height: 6,
-    backgroundColor: Colors.white,
-    borderBottomLeftRadius: 14,
-    borderBottomRightRadius: 14,
+    zIndex: 2,
   },
   closeButton: {
     width: "60%",
