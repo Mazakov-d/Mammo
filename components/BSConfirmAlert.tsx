@@ -2,6 +2,7 @@ import React, { forwardRef, useEffect, useRef, useState } from "react";
 import { Text, StyleSheet, TouchableOpacity, View, Animated, Easing } from "react-native";
 import { BottomSheetModal, BottomSheetView } from "@gorhom/bottom-sheet";
 import { AntDesign } from "@expo/vector-icons";
+import { Colors } from "../constants/Colors";
 
 interface BSConfirmAlertProps {
   title?: string;
@@ -69,12 +70,13 @@ const BSConfirmAlert = forwardRef<BottomSheetModal, BSConfirmAlertProps>(
         index={0}
         backgroundStyle={styles.bottomSheetBackground}
         handleIndicatorStyle={styles.handleIndicator}
-        enablePanDownToClose={true}
+        enablePanDownToClose={false}
+		handleComponent={null}
         onChange={onChange}
       >
         <BottomSheetView style={styles.contentContainer}>
           <View style={styles.iconContainer}>
-            <AntDesign name="warning" size={48} color="#da2d2d" />
+            <AntDesign name="warning" size={48} color={Colors.danger} />
           </View>
           <Text style={styles.modalTitle}>{title}</Text>
           <Text style={styles.modalText}>{message}</Text>
@@ -106,17 +108,17 @@ export default BSConfirmAlert;
 
 const styles = StyleSheet.create({
   bottomSheetBackground: {
-    backgroundColor: "#191919",
+    backgroundColor: Colors.sheetAltBackground,
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
-    shadowColor: "#000",
+    shadowColor: Colors.black,
     shadowOffset: { width: 0, height: -4 },
     shadowOpacity: 0.3,
     shadowRadius: 12,
     elevation: 12,
   },
   handleIndicator: {
-    backgroundColor: "#444",
+    backgroundColor: Colors.grayDark,
     width: 60,
     height: 6,
     borderRadius: 3,
@@ -133,26 +135,26 @@ const styles = StyleSheet.create({
   },
   iconContainer: {
     marginBottom: 12,
-    backgroundColor: "#fff2f2",
+    backgroundColor: Colors.whiteAlt,
     borderRadius: 32,
     padding: 8,
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: "#da2d2d",
+    shadowColor: Colors.danger,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 6,
     elevation: 6,
   },
   modalTitle: {
-    color: "#fff",
+    color: Colors.white,
     fontSize: 22,
     fontWeight: "bold",
     marginBottom: 10,
     textAlign: "center",
   },
   modalText: {
-    color: "#e0e0e0",
+    color: Colors.textSecondary,
     fontSize: 17,
     marginBottom: 32,
     textAlign: "center",
@@ -164,13 +166,13 @@ const styles = StyleSheet.create({
   },
   confirmButton: {
     width: "100%",
-    backgroundColor: "#da2d2d",
+    backgroundColor: Colors.danger,
     paddingVertical: 20,
     borderRadius: 14,
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 0,
-    shadowColor: "#da2d2d",
+    shadowColor: Colors.danger,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 4,
@@ -178,7 +180,7 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   confirmButtonText: {
-    color: "white",
+    color: Colors.white,
     fontSize: 19,
     fontWeight: "bold",
     letterSpacing: 0.5,
@@ -190,25 +192,25 @@ const styles = StyleSheet.create({
     bottom: 0,
     height: 6,
     width: "100%",
-    backgroundColor: "#b71c1c",
+    backgroundColor: Colors.warning,
     borderBottomLeftRadius: 14,
     borderBottomRightRadius: 14,
     overflow: "hidden",
   },
   progressBar: {
     height: 6,
-    backgroundColor: "#fff",
+    backgroundColor: Colors.white,
     borderBottomLeftRadius: 14,
     borderBottomRightRadius: 14,
   },
   closeButton: {
     width: "60%",
-    backgroundColor: "#f88f39",
+    backgroundColor: Colors.primary,
     paddingVertical: 14,
     borderRadius: 12,
     alignItems: "center",
     alignSelf: "center",
-    shadowColor: "#f88f39",
+    shadowColor: Colors.primary,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.18,
     shadowRadius: 4,
@@ -216,7 +218,7 @@ const styles = StyleSheet.create({
     marginTop: 0,
   },
   closeButtonText: {
-    color: "white",
+    color: Colors.white,
     fontSize: 16,
     fontWeight: "bold",
     letterSpacing: 0.5,
