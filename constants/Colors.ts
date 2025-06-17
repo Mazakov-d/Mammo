@@ -111,4 +111,4 @@ export const Layout = {
   elevationSheet: 12,
   elevationButton: 3,
   shadowRadiusButton: 3.84,
-};
+} as const;

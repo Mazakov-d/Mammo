@@ -1,69 +1,32 @@
-import React, { forwardRef, useEffect, useRef, useState } from "react";
-import { Text, StyleSheet, TouchableOpacity, View, Animated, Easing } from "react-native";
+import React, { forwardRef } from "react";
+import { Text, StyleSheet, TouchableOpacity, View } from "react-native";
 import { BottomSheetModal, BottomSheetView } from "@gorhom/bottom-sheet";
 import { AntDesign } from "@expo/vector-icons";
 import { Colors } from "../constants/Colors";
 
-interface BSConfirmAlertProps {
+interface BSConfirmStopProps {
   title?: string;
   message?: string;
   onConfirm: () => void;
   onCancel: () => void;
   confirmLabel?: string;
   cancelLabel?: string;
-  confirmDelayMs?: number;
   onChange?: (index: number) => void;
 }
 
-const BSConfirmAlert = forwardRef<BottomSheetModal, BSConfirmAlertProps>(
+const BSConfirmStop = forwardRef<BottomSheetModal, BSConfirmStopProps>(
   (
     {
-      title = "Confirmation d'alerte",
-      message = "Nous allons alerter tous les utilisateurs autour de vous",
+      title = "Arrêter l'alerte ?",
+      message = "Êtes-vous sûr de vouloir stopper l'alerte en cours ?",
       onConfirm,
       onCancel,
-      confirmLabel = "Confirmer",
+      confirmLabel = "Oui, arrêter",
       cancelLabel = "Annuler",
-      confirmDelayMs = 5000,
       onChange,
     },
     ref
   ) => {
-    const [timer, setTimer] = useState(0);
-    const [autoPressed, setAutoPressed] = useState(false);
-    const progress = useRef(new Animated.Value(0)).current;
-
-    useEffect(() => {
-      setTimer(0);
-      setAutoPressed(false);
-      progress.setValue(0);
-      const interval = setInterval(() => {
-        setTimer((t) => t + 100);
-      }, 100);
-      Animated.timing(progress, {
-        toValue: 1,
-        duration: confirmDelayMs,
-        useNativeDriver: false,
-        easing: Easing.linear,
-      }).start();
-      return () => {
-        clearInterval(interval);
-        progress.stopAnimation();
-      };
-    }, [confirmDelayMs]);
-
-    useEffect(() => {
-      if (timer >= confirmDelayMs && !autoPressed) {
-        setAutoPressed(true);
-        onConfirm();
-      }
-    }, [timer, confirmDelayMs, autoPressed, onConfirm]);
-
-    const widthInterpolate = progress.interpolate({
-      inputRange: [0, 1],
-      outputRange: ["0%", "100%"],
-    });
-
     return (
       <BottomSheetModal
         ref={ref}
@@ -71,33 +34,23 @@ const BSConfirmAlert = forwardRef<BottomSheetModal, BSConfirmAlertProps>(
         backgroundStyle={styles.bottomSheetBackground}
         handleIndicatorStyle={styles.handleIndicator}
         enablePanDownToClose={false}
-		    handleComponent={null}
-        onChange={onChange}
+        handleComponent={null}
         enableContentPanningGesture={false}
+        onChange={onChange}
       >
         <BottomSheetView style={styles.contentContainer}>
           <View style={styles.iconContainer}>
-            <AntDesign name="warning" size={48} color={Colors.danger} />
+            <AntDesign name="closecircleo" size={48} color={Colors.warning} />
           </View>
           <Text style={styles.modalTitle}>{title}</Text>
           <Text style={styles.modalText}>{message}</Text>
 
           <View style={styles.confirmButtonWrapper}>
             <TouchableOpacity
-              style={[styles.confirmButton, { backgroundColor: Colors.warning }]}
+              style={[styles.confirmButton, { backgroundColor: Colors.primary }]}
               onPress={onConfirm}
               activeOpacity={0.8}
-              disabled={autoPressed}
             >
-              <Animated.View
-                style={[
-                  styles.confirmButtonFill,
-                  {
-                    width: widthInterpolate,
-                    backgroundColor: Colors.danger,
-                  },
-                ]}
-              />
               <Text style={styles.confirmButtonText}>{confirmLabel}</Text>
             </TouchableOpacity>
           </View>
@@ -111,7 +64,7 @@ const BSConfirmAlert = forwardRef<BottomSheetModal, BSConfirmAlertProps>(
   }
 );
 
-export default BSConfirmAlert;
+export default BSConfirmStop;
 
 const styles = StyleSheet.create({
   bottomSheetBackground: {
@@ -147,7 +100,7 @@ const styles = StyleSheet.create({
     padding: 8,
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: Colors.danger,
+    shadowColor: Colors.warning,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 6,
@@ -173,7 +126,7 @@ const styles = StyleSheet.create({
   },
   confirmButton: {
     width: "100%",
-    backgroundColor: Colors.black,
+    backgroundColor: Colors.danger,
     paddingVertical: 20,
     borderRadius: 14,
     alignItems: "center",
@@ -186,14 +139,6 @@ const styles = StyleSheet.create({
     elevation: 4,
     overflow: "hidden",
   },
-  confirmButtonFill: {
-    position: "absolute",
-    left: 0,
-    top: 0,
-    bottom: 0,
-    borderRadius: 14,
-    zIndex: 1,
-  },
   confirmButtonText: {
     color: Colors.white,
     fontSize: 19,
@@ -204,7 +149,7 @@ const styles = StyleSheet.create({
   },
   closeButton: {
     width: "60%",
-    backgroundColor: Colors.primary,
+    backgroundColor: Colors.danger,
     paddingVertical: 14,
     borderRadius: 12,
     alignItems: "center",
@@ -216,6 +161,7 @@ const styles = StyleSheet.create({
     elevation: 4,
     marginTop: 0,
     marginBottom: 16,
+
   },
   closeButtonText: {
     color: Colors.white,
@@ -223,4 +169,4 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     letterSpacing: 0.5,
   },
-}); 
+});

@@ -1,59 +1,186 @@
 import { Button } from "@react-navigation/elements";
 import React, { useRef, useMemo, useCallback, useState } from "react";
-import { Text, View, StyleSheet, TouchableOpacity } from "react-native";
+import {
+  Text,
+  View,
+  StyleSheet,
+  TouchableOpacity,
+  Pressable,
+} from "react-native";
 import MapView from "react-native-maps";
-import { useRouter } from "expo-router";
+import { Stack, useRouter } from "expo-router";
 import BSConfirmAlert from "../components/BSConfirmAlert";
+import BSConfirmStop from "../components/BSConfirmStop";
 import { Colors, Layout } from "../constants/Colors";
+import { BottomSheetModal } from "@gorhom/bottom-sheet";
+import { AntDesign, Fontisto, Feather } from "@expo/vector-icons";
 
 export default function Index() {
   const router = useRouter();
 
-  const [showConfirmAlert, setShowConfirmAlert] = useState(false);
-  const bottomSheetModalRef = useRef<typeof BSConfirmAlert>(null);
+  const [onAlert, setOnAlert] = useState(false);
+  const [BSConfirmAlertMounted, setBSConfirmAlertMounted] = useState(false);
+  const [showStopSheet, setShowStopSheet] = useState(false);
+  const bottomSheetModalRef = useRef<BottomSheetModal>(null);
+  const stopSheetRef = useRef<BottomSheetModal>(null);
 
   const handlePresentModalPress = useCallback(() => {
-    setShowConfirmAlert(true);
+    setBSConfirmAlertMounted(true);
     setTimeout(() => {
       bottomSheetModalRef.current?.present();
     }, 10);
   }, []);
 
-  const handleDismissModalPress = useCallback(() => {
+  const handleCancelModalPress = useCallback(() => {
+    setBSConfirmAlertMounted(false);
+    bottomSheetModalRef.current?.dismiss();
+  }, []);
+
+  const handleConfirmModalPress = useCallback(() => {
+    setOnAlert(true);
+    setBSConfirmAlertMounted(false);
     bottomSheetModalRef.current?.dismiss();
   }, []);
 
   const handleSheetChanges = useCallback((index: number) => {
     if (index === -1) {
-      setShowConfirmAlert(false);
+      setBSConfirmAlertMounted(false);
     }
   }, []);
 
   return (
     <View style={styles.container}>
+      <Stack.Screen
+        options={{
+          headerTransparent: true,
+          headerLeft: () => {
+            return onAlert === false ? (
+              <Pressable
+                style={({ pressed }) => [
+                  {
+                    width: Layout.buttonWidth,
+                    height: Layout.buttonHeight,
+                    backgroundColor: Colors.primary,
+                    justifyContent: "center",
+                    alignItems: "center",
+                    borderRadius: Layout.radiusLarge,
+                    opacity: pressed ? 0.5 : 1,
+                  },
+                ]}
+              >
+                <Fontisto
+                  style={{
+                    // backgroundColor:"red",
+                    padding: Layout.paddingSmall,
+                  }}
+                  name="bell"
+                  size={24}
+                  color="white"
+                />
+              </Pressable>
+            ) : null;
+          },
+          headerRight: () => {
+            return onAlert === false ? (
+              <View
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: 10,
+                }}
+              >
+                <Pressable
+                  style={({ pressed }) => [
+                    {
+                      width: Layout.buttonWidth,
+                      height: Layout.buttonHeight,
+                      backgroundColor: Colors.primary,
+                      justifyContent: "center",
+                      alignItems: "center",
+                      borderRadius: Layout.radiusLarge,
+                      opacity: pressed ? 0.5 : 1,
+                    },
+                  ]}
+                >
+                  <Feather name="user" size={28} color="white" />
+                </Pressable>
+                <Pressable
+                  style={({ pressed }) => [
+                    {
+                      width: Layout.buttonWidth,
+                      height: Layout.buttonHeight,
+                      backgroundColor: Colors.primary,
+                      justifyContent: "center",
+                      alignItems: "center",
+                      borderRadius: Layout.radiusLarge,
+                      opacity: pressed ? 0.5 : 1,
+                    },
+                  ]}
+                >
+                  <AntDesign name="setting" size={28} color="white" />
+                </Pressable>
+              </View>
+            ) : (
+              <Pressable
+                style={({ pressed }) => [
+                  {
+                    width: Layout.buttonWidth * 1.5,
+                    height: Layout.buttonHeight * 1.5,
+                    backgroundColor: Colors.primary,
+                    justifyContent: "center",
+                    alignItems: "center",
+                    borderRadius: 50,
+                    opacity: pressed ? 0.5 : 1,
+                    position: "absolute",
+                    top: 10,
+                    right: 10,
+                  },
+                ]}
+                onPress={() => {
+                  setShowStopSheet(true);
+                  setTimeout(() => {
+                    stopSheetRef.current?.present();
+                  }, 10);
+                }}
+              >
+                <Text
+                  style={{
+                    color: Colors.white,
+                    fontSize: Layout.fontSizeSmall,
+                    fontWeight: Layout.fontWeightBold,
+                  }}
+                >
+                  STOP
+                </Text>
+              </Pressable>
+            );
+          },
+          headerTitle: "",
+        }}
+      />
       <MapView
         style={styles.map}
         showsBuildings={false}
         showsTraffic={false}
         showsIndoors={false}
-        showsCompass={false}
+        showsCompass={true}
         showsScale={false}
+        showsUserLocation={true}
       />
 
-      <View style={styles.buttonContainer}>
+      {onAlert === false && (
         <TouchableOpacity
           style={styles.ovalButton}
           onPress={handlePresentModalPress}
         >
           <Text style={styles.buttonText}>SOS</Text>
         </TouchableOpacity>
-      </View>
-
-      {showConfirmAlert && (
+      )}
+      {BSConfirmAlertMounted && (
         <BSConfirmAlert
           ref={bottomSheetModalRef}
-          onConfirm={handleDismissModalPress}
-          onCancel={handleDismissModalPress}
+          onConfirm={handleConfirmModalPress}
+          onCancel={handleCancelModalPress}
           title={"Confirmation d'alerte"}
           message={"Nous allons alerter tous les utilisateurs autour de vous"}
           confirmLabel={"Confirmer"}
@@ -62,11 +189,39 @@ export default function Index() {
           onChange={handleSheetChanges}
         />
       )}
+      {showStopSheet && (
+        <BSConfirmStop
+          ref={stopSheetRef}
+          onConfirm={() => {
+            setOnAlert(false);
+            setShowStopSheet(false);
+            stopSheetRef.current?.dismiss();
+          }}
+          onCancel={() => {
+            setShowStopSheet(false);
+            stopSheetRef.current?.dismiss();
+          }}
+          title={"Arrêter l'alerte ?"}
+          message={"Êtes-vous sûr de vouloir stopper l'alerte en cours ?"}
+          confirmLabel={"Oui, arrêter"}
+          cancelLabel={"Annuler"}
+          onChange={(index) => {
+            if (index === -1) setShowStopSheet(false);
+          }}
+        />
+      )}
     </View>
   );
 }
 
-const styles = StyleSheet.create({
+import type { ViewStyle, TextStyle } from "react-native";
+
+const styles = StyleSheet.create<{
+  container: ViewStyle;
+  map: ViewStyle;
+  ovalButton: ViewStyle;
+  buttonText: TextStyle;
+}>({
   container: {
     flex: 1,
   },
@@ -84,14 +239,18 @@ const styles = StyleSheet.create({
   },
   ovalButton: {
     backgroundColor: Colors.danger,
-    paddingHorizontal: 60,
-    paddingVertical: 20,
+    position: "absolute",
+    bottom: 100,
+    alignSelf: "center",
+    width: "45%",
+    // paddingHorizontal: 60,
+    paddingVertical: 18,
     borderRadius: Layout.radiusLarge,
-    elevation: Layout.elevationButton,
     shadowColor: Colors.black,
     shadowOffset: Layout.shadowOffset,
     shadowOpacity: Layout.shadowOpacity,
     shadowRadius: Layout.shadowRadiusButton,
+    elevation: 5,
   },
   buttonText: {
     color: Colors.white,
