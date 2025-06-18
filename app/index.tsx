@@ -1,5 +1,5 @@
 import { Button } from "@react-navigation/elements";
-import React, { useRef, useMemo, useCallback, useState } from "react";
+import React, { useRef, useMemo, useCallback, useState, useEffect } from "react";
 import {
   Text,
   View,
@@ -14,15 +14,33 @@ import BSConfirmStop from "../components/BSConfirmStop";
 import { Colors, Layout } from "../constants/Colors";
 import { BottomSheetModal } from "@gorhom/bottom-sheet";
 import { AntDesign, Fontisto, Feather } from "@expo/vector-icons";
+import * as Location from "expo-location";
 
 export default function Index() {
   const router = useRouter();
+
+  const [location, setLocation] = useState<Location.LocationObject | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  useMemo(() => {
+    (async () => {
+      let { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== "granted") {
+        setErrorMsg("Permission to access location was denied");
+        return;
+      }
+      let loc = await Location.getCurrentPositionAsync({});
+      console.log("Location:", loc);
+      setLocation(loc);
+    })();
+  }, []);
 
   const [onAlert, setOnAlert] = useState(false);
   const [BSConfirmAlertMounted, setBSConfirmAlertMounted] = useState(false);
   const [showStopSheet, setShowStopSheet] = useState(false);
   const bottomSheetModalRef = useRef<BottomSheetModal>(null);
   const stopSheetRef = useRef<BottomSheetModal>(null);
+  const mapRef = useRef<MapView>(null);
 
   const handlePresentModalPress = useCallback(() => {
     setBSConfirmAlertMounted(true);
@@ -47,6 +65,17 @@ export default function Index() {
       setBSConfirmAlertMounted(false);
     }
   }, []);
+
+  useEffect(() => {
+    if (location && mapRef.current) {
+      mapRef.current.animateToRegion({
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude,
+        latitudeDelta: 0.0922,
+        longitudeDelta: 0.0421,
+      });
+    }
+  }, [location]);
 
   return (
     <View style={styles.container}>
@@ -159,6 +188,7 @@ export default function Index() {
         }}
       />
       <MapView
+        ref={mapRef}
         style={styles.map}
         showsBuildings={false}
         showsTraffic={false}
@@ -166,6 +196,21 @@ export default function Index() {
         showsCompass={true}
         showsScale={false}
         showsUserLocation={true}
+        initialRegion={{
+          latitude: location?.coords.latitude || 48.8566,
+          longitude: location?.coords.longitude || 2.3522,
+          latitudeDelta: 0.0922,
+          longitudeDelta: 0.0421,
+        }}
+        onRegionChangeComplete={(region) => {
+          console.log("Region changed:", region);
+        }}
+        onUserLocationChange={(e) => {
+          console.log("User location changed:", e.nativeEvent.coordinate);
+        }}
+        onMapReady={() => {
+          console.log("Map is ready");
+        }}
       />
 
       {onAlert === false && (
