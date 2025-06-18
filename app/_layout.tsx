@@ -10,13 +10,12 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView>
       <BottomSheetModalProvider>
-		<AuthProvider>
-        <Stack>
-          <Stack.Screen
-            name="index"
-          />
-        </Stack>
-		</AuthProvider>
+        <AuthProvider>
+          <Stack>
+            <Stack.Screen name="index" />
+            <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+          </Stack>
+        </AuthProvider>
       </BottomSheetModalProvider>
     </GestureHandlerRootView>
   );

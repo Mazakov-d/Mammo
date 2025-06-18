@@ -1,110 +1,306 @@
-import { View, StyleSheet, TextInput, Text, Alert, Button } from 'react-native';
-import { FontAwesome6 } from '@expo/vector-icons';
-import { useState } from 'react';
-import { Colors } from '@/constants/Colors';
-import { Link, Stack } from 'expo-router';
-import { supabase } from '@/lib/supabase';
+import React, { useState } from "react";
+import {
+  View,
+  StyleSheet,
+  TextInput,
+  Text,
+  Alert,
+  TouchableOpacity,
+  ScrollView,
+  KeyboardAvoidingView,
+  Platform,
+  Dimensions,
+} from "react-native";
+import { FontAwesome6, Feather, MaterialIcons } from "@expo/vector-icons";
+import { Colors } from "@/constants/Colors";
+import { Link, Stack } from "expo-router";
+import { supabase } from "@/lib/supabase";
+
+const { width, height } = Dimensions.get("window");
 
 export default function SignInScreen() {
-	const [showPassword, setShowPassword] = useState(false);
-	const [password, setPassword] = useState('');
-	const [email, setEmail] = useState('');
-	const [loading, setLoading] = useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-	const handleSignIn = async () => {
-		setLoading(true);
-		const { error } = await supabase.auth.signInWithPassword({
-			email,
-			password,
-		});
-		if (error) Alert.alert('Error', error.message);
-		setLoading(false);
-	};
+  const handleSignIn = async () => {
+    if (!email || !password) {
+      Alert.alert("Erreur", "Veuillez remplir tous les champs");
+      return;
+    }
 
-	return (
-		<View style={styles.container}>
-			<Stack.Screen options={{ title: 'Connexion' }} />
-			<View style={styles.inputView}>
-				<Text style={styles.inputLabel}>Email :</Text>
-				<TextInput
-					style={styles.emailInput}
-					placeholder="test@test.fr"
-					keyboardType="email-address"
-					onChangeText={setEmail}
-					value={email}
-					autoCapitalize="none"
-				/>
-			</View>
-			<View style={styles.inputView}>
-				<Text style={styles.inputLabel}>Password :</Text>
-				<View style={styles.secureView}>
-					<TextInput
-						style={styles.secureInput}
-						secureTextEntry={!showPassword}
-						onChangeText={setPassword}
-						value={password}
-					/>
-					<FontAwesome6
-						onPress={() => setShowPassword(!showPassword)}
-						name={showPassword ? 'eye' : 'eye-slash'}
-						size={20}
-						color="black"
-						style={{ marginRight: 5 }}
-					/>
-				</View>
-			</View>
+    setLoading(true);
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+    if (error) Alert.alert("Erreur", error.message);
+    setLoading(false);
+  };
 
-			<Button
-				title={loading ? 'Connexion ...' : 'Connexion'}
-				onPress={handleSignIn}
-			/>
-			<Link
-				href={'/sign-up'}
-				asChild>
-				<Button title="Pas de compte ?" />
-			</Link>
-		</View>
-	);
+  return (
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+    >
+      <Stack.Screen
+        options={{
+          headerShown: false,
+        }}
+      />
+
+      <ScrollView
+        contentContainerStyle={styles.scrollContainer}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
+        {/* Header Section */}
+        <View style={styles.headerSection}>
+          <View style={styles.logoContainer}>
+            <View style={styles.logoCircle}>
+              <MaterialIcons name="security" size={40} color="white" />
+            </View>
+          </View>
+          <Text style={styles.welcomeTitle}>Bienvenue</Text>
+          <Text style={styles.welcomeSubtitle}>
+            Connectez-vous à votre compte
+          </Text>
+        </View>
+
+        {/* Form Section */}
+        <View style={styles.formSection}>
+          {/* Email Input */}
+          <View style={styles.inputContainer}>
+            <Text style={styles.inputLabel}>Adresse e-mail</Text>
+            <View style={styles.inputWrapper}>
+              <Feather
+                name="mail"
+                size={20}
+                color={"#6c757d"}
+                style={styles.inputIcon}
+              />
+              <TextInput
+                style={styles.textInput}
+                placeholder="user@example.fr"
+                placeholderTextColor="#6c757d"
+                value={email}
+                onChangeText={setEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+            </View>
+          </View>
+
+          {/* Password Input */}
+          <View style={styles.inputContainer}>
+            <Text style={styles.inputLabel}>Mot de passe</Text>
+            <View style={styles.inputWrapper}>
+              <Feather
+                name="lock"
+                size={20}
+                color={"#6c757d"}
+                style={styles.inputIcon}
+              />
+              <TextInput
+                style={styles.textInput}
+                placeholder="Entrez votre mot de passe"
+                placeholderTextColor="#6c757d"
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry={!showPassword}
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+              <TouchableOpacity
+                onPress={() => setShowPassword(!showPassword)}
+                style={styles.eyeIcon}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <FontAwesome6
+                  name={showPassword ? "eye" : "eye-slash"}
+                  size={18}
+                  color="#6c757d"
+                />
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* Forgot Password */}
+          <TouchableOpacity style={styles.forgotPasswordContainer}>
+            <Text style={styles.forgotPasswordText}>Mot de passe oublié ?</Text>
+          </TouchableOpacity>
+
+          {/* Sign In Button */}
+          <TouchableOpacity
+            style={[
+              styles.signInButton,
+              loading && styles.signInButtonDisabled,
+            ]}
+            onPress={handleSignIn}
+            disabled={loading}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.signInButtonText}>
+              {loading ? "Connexion..." : "Se connecter"}
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Footer Section */}
+        <View style={styles.footerSection}>
+          <Text style={styles.footerText}>Pas de compte ? </Text>
+          <Link href="/sign-up" asChild>
+            <TouchableOpacity>
+              <Text style={styles.footerLinkText}>S'inscrire</Text>
+            </TouchableOpacity>
+          </Link>
+        </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
+  );
 }
 
 const styles = StyleSheet.create({
-	container: {
-		flex: 1,
-		justifyContent: 'center',
-		gap: 10,
-		padding: 10,
-	},
-	inputView: {
-		gap: 5,
-	},
-	inputLabel: {
-		color: 'gray',
-		fontSize: 16,
-	},
-	emailInput: {
-		borderWidth: 1,
-		borderColor: 'black',
-		borderRadius: 10,
-		height: 40,
-		padding: 10,
-	},
-	secureView: {
-		flexDirection: 'row',
-		alignItems: 'center',
-		justifyContent: 'space-between',
-		borderWidth: 1,
-		borderRadius: 10,
-		height: 40,
-	},
-	secureInput: {
-		borderColor: 'black',
-		width: '80%',
-		padding: 10,
-	},
-	textButton: {
-		alignSelf: 'center',
-		fontWeight: 'bold',
-		color: Colors.light.tint,
-		marginVertical: 10,
-	},
+  container: {
+    flex: 1,
+    backgroundColor: "#f8f9fa",
+  },
+  scrollContainer: {
+    flexGrow: 1,
+    paddingHorizontal: 24,
+    paddingBottom: 20,
+    paddingTop: 60,
+  },
+  headerSection: {
+    alignItems: "center",
+    paddingTop: 40,
+    paddingBottom: 40,
+  },
+  logoContainer: {
+    marginBottom: 24,
+  },
+  logoCircle: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: Colors.orange,
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  welcomeTitle: {
+    fontSize: 32,
+    fontWeight: "bold",
+    color: Colors.primary,
+    marginBottom: 8,
+    textAlign: "center",
+  },
+  welcomeSubtitle: {
+    fontSize: 16,
+    color: "#6c757d",
+    textAlign: "center",
+    lineHeight: 22,
+  },
+  formSection: {
+    backgroundColor: "white",
+    borderRadius: 20,
+    padding: 24,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 4,
+    marginBottom: 24,
+  },
+  inputContainer: {
+    marginBottom: 20,
+  },
+  inputLabel: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: Colors.primary,
+    marginBottom: 8,
+  },
+  inputWrapper: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "white",
+    borderWidth: 2,
+    borderColor: "#e9ecef",
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 4,
+    minHeight: 50,
+  },
+  inputIcon: {
+    marginRight: 12,
+  },
+  textInput: {
+    flex: 1,
+    fontSize: 16,
+    color: Colors.primary,
+    paddingVertical: 12,
+  },
+  eyeIcon: {
+    padding: 4,
+  },
+  forgotPasswordContainer: {
+    alignSelf: "flex-end",
+    marginBottom: 24,
+  },
+  forgotPasswordText: {
+    color: Colors.orange,
+    fontSize: 14,
+    fontWeight: "500",
+  },
+  signInButton: {
+    backgroundColor: Colors.orange,
+    borderRadius: 12,
+    paddingVertical: 16,
+    alignItems: "center",
+    marginBottom: 24,
+    shadowColor: Colors.orange,
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  signInButtonDisabled: {
+    opacity: 0.7,
+  },
+  signInButtonText: {
+    color: "white",
+    fontSize: 16,
+    fontWeight: "bold",
+  },
+  footerSection: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingBottom: 24,
+  },
+  footerText: {
+    fontSize: 14,
+    color: "#6c757d",
+  },
+  footerLinkText: {
+    color: Colors.orange,
+    fontWeight: "600",
+    fontSize: 14,
+  },
 });
