@@ -13,12 +13,13 @@ import {
 } from "react-native";
 import { FontAwesome6, Feather, MaterialIcons } from "@expo/vector-icons";
 import { Colors } from "@/constants/Colors";
-import { Link, Stack } from "expo-router";
+import { Link, Stack, useRouter } from "expo-router";
 import { supabase } from "@/lib/supabase";
 
 const { width, height } = Dimensions.get("window");
 
 export default function SignInScreen() {
+  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -151,11 +152,11 @@ export default function SignInScreen() {
         {/* Footer Section */}
         <View style={styles.footerSection}>
           <Text style={styles.footerText}>Pas de compte ? </Text>
-          <Link href="/sign-up" asChild>
-            <TouchableOpacity>
+            <TouchableOpacity 
+              onPress={() => router.push("/sign-up")}
+            >
               <Text style={styles.footerLinkText}>S'inscrire</Text>
             </TouchableOpacity>
-          </Link>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>

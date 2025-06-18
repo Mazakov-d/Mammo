@@ -13,13 +13,14 @@ import {
 import { FontAwesome6, Feather, MaterialIcons } from "@expo/vector-icons";
 import { useState } from "react";
 import { Colors } from "@/constants/Colors";
-import { Link, Stack } from "expo-router";
+import { Link, router, Stack, useRouter } from "expo-router";
 import { supabase } from "@/lib/supabase";
 
 
 const { width, height } = Dimensions.get('window');
 
 export default function SignUpScreen() {
+  const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [email, setEmail] = useState('');
@@ -206,11 +207,13 @@ export default function SignUpScreen() {
           <Text style={styles.footerText}>
             Déjà un compte ?{' '}
           </Text>
-          <Link href="/sign-in" asChild>
-            <TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => {
+                router.push("/sign-in");
+              }}
+            >
               <Text style={styles.footerLinkText}>Se connecter</Text>
             </TouchableOpacity>
-          </Link>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
