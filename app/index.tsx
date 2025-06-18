@@ -15,9 +15,18 @@ import { Colors, Layout } from "../constants/Colors";
 import { BottomSheetModal } from "@gorhom/bottom-sheet";
 import { AntDesign, Fontisto, Feather } from "@expo/vector-icons";
 import * as Location from "expo-location";
+import { useAuth } from "@/provider/AuthProvider";
+import { Redirect } from "expo-router";
+import { supabase } from "@/lib/supabase";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function Index() {
   const router = useRouter();
+  const { session } = useAuth();
+  if (!session) {
+    return <Redirect href="./(auth)/sign-in" />;
+  }
+  const insets = useSafeAreaInsets();
 
   const [location, setLocation] = useState<Location.LocationObject | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -77,114 +86,131 @@ export default function Index() {
     }
   }, [location]);
 
+  const handleSignOut = () => {
+    supabase.auth.signOut();
+  };
+
   return (
     <View style={styles.container}>
       <Stack.Screen
         options={{
           headerTransparent: true,
-          headerLeft: () => {
-            return onAlert === false ? (
-              <Pressable
-                style={({ pressed }) => [
-                  {
-                    width: Layout.buttonWidth,
-                    height: Layout.buttonHeight,
-                    backgroundColor: Colors.primary,
-                    justifyContent: "center",
-                    alignItems: "center",
-                    borderRadius: Layout.radiusLarge,
-                    opacity: pressed ? 0.5 : 1,
-                  },
-                ]}
-              >
-                <Fontisto
-                  style={{
-                    // backgroundColor:"red",
-                    padding: Layout.paddingSmall,
-                  }}
-                  name="bell"
-                  size={24}
-                  color="white"
-                />
-              </Pressable>
-            ) : null;
-          },
-          headerRight: () => {
-            return onAlert === false ? (
+          header: () => {
+            return (
               <View
                 style={{
+                  height: insets.top + 44,
+                  paddingTop: insets.top,
                   flexDirection: "row",
                   alignItems: "center",
-                  gap: 10,
+                  justifyContent: "space-between",
+                  paddingHorizontal: Layout.padding,
                 }}
               >
-                <Pressable
-                  style={({ pressed }) => [
-                    {
-                      width: Layout.buttonWidth,
-                      height: Layout.buttonHeight,
-                      backgroundColor: Colors.primary,
-                      justifyContent: "center",
-                      alignItems: "center",
-                      borderRadius: Layout.radiusLarge,
-                      opacity: pressed ? 0.5 : 1,
-                    },
-                  ]}
-                >
-                  <Feather name="user" size={28} color="white" />
-                </Pressable>
-                <Pressable
-                  style={({ pressed }) => [
-                    {
-                      width: Layout.buttonWidth,
-                      height: Layout.buttonHeight,
-                      backgroundColor: Colors.primary,
-                      justifyContent: "center",
-                      alignItems: "center",
-                      borderRadius: Layout.radiusLarge,
-                      opacity: pressed ? 0.5 : 1,
-                    },
-                  ]}
-                >
-                  <AntDesign name="setting" size={28} color="white" />
-                </Pressable>
+                {onAlert === false ? (
+                  <>
+                    {/* header left: bell */}
+                    <Pressable
+                      style={({ pressed }) => [
+                        {
+                          width: Layout.buttonWidth,
+                          height: Layout.buttonHeight,
+                          backgroundColor: Colors.orange,
+                          justifyContent: "center",
+                          alignItems: "center",
+                          borderRadius: Layout.radiusLarge,
+                          opacity: pressed ? 0.5 : 1,
+                        },
+                      ]}
+                    >
+                      <Fontisto
+                        style={{
+                          padding: Layout.paddingSmall,
+                        }}
+                        name="bell"
+                        size={24}
+                        color="white"
+                      />
+                    </Pressable>
+                    {/* header right: user/settings */}
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        gap: 10,
+                      }}
+                    >
+                      <Pressable
+                        style={({ pressed }) => [
+                          {
+                            width: Layout.buttonWidth,
+                            height: Layout.buttonHeight,
+                            backgroundColor: Colors.orange,
+                            justifyContent: "center",
+                            alignItems: "center",
+                            borderRadius: Layout.radiusLarge,
+                            opacity: pressed ? 0.5 : 1,
+                          },
+                        ]}
+                      >
+                        <Feather name="user" size={28} color="white" />
+                      </Pressable>
+                      <Pressable
+                        style={({ pressed }) => [
+                          {
+                            width: Layout.buttonWidth,
+                            height: Layout.buttonHeight,
+                            backgroundColor: Colors.orange,
+                            justifyContent: "center",
+                            alignItems: "center",
+                            borderRadius: Layout.radiusLarge,
+                            opacity: pressed ? 0.5 : 1,
+                          },
+                        ]}
+                        onPress={() => handleSignOut()}
+                      >
+                        <AntDesign name="setting" size={28} color="white" />
+                      </Pressable>
+                    </View>
+                  </>
+                ) : (
+                  // onAlert === true: show STOP button
+                  <Pressable
+                    style={({ pressed }) => [
+                      {
+                        width: Layout.buttonWidth * 1.5,
+                        height: Layout.buttonHeight * 1.5,
+                        backgroundColor: Colors.orange,
+                        justifyContent: "center",
+                        alignItems: "center",
+                        borderRadius: 50,
+                        opacity: pressed ? 0.5 : 1,
+                        position: "absolute",
+                        top: insets.top + 10,
+                        right: 10,
+                      },
+                    ]}
+                    onPress={() => {
+                      setShowStopSheet(true);
+                      setTimeout(() => {
+                        stopSheetRef.current?.present();
+                      }, 10);
+                    }}
+                  >
+                    <Text
+                      style={{
+                        color: Colors.white,
+                        fontSize: Layout.fontSizeSmall,
+                        fontWeight: Layout.fontWeightBold,
+                      }}
+                    >
+                      STOP
+                    </Text>
+                  </Pressable>
+                )}
               </View>
-            ) : (
-              <Pressable
-                style={({ pressed }) => [
-                  {
-                    width: Layout.buttonWidth * 1.5,
-                    height: Layout.buttonHeight * 1.5,
-                    backgroundColor: Colors.primary,
-                    justifyContent: "center",
-                    alignItems: "center",
-                    borderRadius: 50,
-                    opacity: pressed ? 0.5 : 1,
-                    position: "absolute",
-                    top: 10,
-                    right: 10,
-                  },
-                ]}
-                onPress={() => {
-                  setShowStopSheet(true);
-                  setTimeout(() => {
-                    stopSheetRef.current?.present();
-                  }, 10);
-                }}
-              >
-                <Text
-                  style={{
-                    color: Colors.white,
-                    fontSize: Layout.fontSizeSmall,
-                    fontWeight: Layout.fontWeightBold,
-                  }}
-                >
-                  STOP
-                </Text>
-              </Pressable>
             );
           },
-          headerTitle: "",
         }}
       />
       <MapView
@@ -283,9 +309,9 @@ const styles = StyleSheet.create<{
     paddingHorizontal: Layout.padding,
   },
   ovalButton: {
-    backgroundColor: Colors.danger,
+    backgroundColor: Colors.red,
     position: "absolute",
-    bottom: 100,
+    bottom: 50,
     alignSelf: "center",
     width: "45%",
     // paddingHorizontal: 60,
