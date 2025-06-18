@@ -1,14 +1,15 @@
-import { 
-  View, 
-  StyleSheet, 
-  TextInput, 
-  Text, 
-  Alert, 
+import {
+  View,
+  StyleSheet,
+  TextInput,
+  Text,
+  Alert,
   TouchableOpacity,
   ScrollView,
   KeyboardAvoidingView,
   Platform,
-  Dimensions
+  Dimensions,
+  Image,
 } from "react-native";
 import { FontAwesome6, Feather, MaterialIcons } from "@expo/vector-icons";
 import { useState } from "react";
@@ -16,14 +17,13 @@ import { Colors } from "@/constants/Colors";
 import { Link, Stack } from "expo-router";
 import { supabase } from "@/lib/supabase";
 
-
-const { width, height } = Dimensions.get('window');
+const { width, height } = Dimensions.get("window");
 
 export default function SignUpScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -39,16 +39,19 @@ export default function SignUpScreen() {
     }
 
     if (password.length < 6) {
-      Alert.alert("Erreur", "Le mot de passe doit contenir au moins 6 caractères");
+      Alert.alert(
+        "Erreur",
+        "Le mot de passe doit contenir au moins 6 caractères"
+      );
       return;
     }
-    
+
     setLoading(true);
     const { error, data } = await supabase.auth.signUp({
       email,
       password,
     });
-    
+
     if (data && !error) {
       Alert.alert(
         "Succès",
@@ -61,28 +64,28 @@ export default function SignUpScreen() {
   };
 
   return (
-    <KeyboardAvoidingView 
-      style={styles.container} 
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
-      <Stack.Screen 
-        options={{ 
-          headerShown: false
-        }} 
+      <Stack.Screen
+        options={{
+          headerShown: false,
+        }}
       />
-      
-      <ScrollView 
+
+      <ScrollView
         contentContainerStyle={styles.scrollContainer}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
         {/* Header Section */}
         <View style={styles.headerSection}>
-          <View style={styles.logoContainer}>
-            <View style={styles.logoCircle}>
-              <MaterialIcons name="person-add" size={40} color="white" />
-            </View>
-          </View>
+          <Image
+            source={require("../../assets/images/mammo_face_sat_no_bg.png")}
+            style={{ width: 150, height: 150 }}
+            resizeMode="contain"
+          />
           <Text style={styles.welcomeTitle}>Créer un compte</Text>
           <Text style={styles.welcomeSubtitle}>
             Rejoignez-nous pour commencer
@@ -95,10 +98,10 @@ export default function SignUpScreen() {
           <View style={styles.inputContainer}>
             <Text style={styles.inputLabel}>Adresse e-mail</Text>
             <View style={styles.inputWrapper}>
-              <Feather 
-                name="mail" 
-                size={20} 
-                color={"#6c757d"} 
+              <Feather
+                name="mail"
+                size={20}
+                color={"#6c757d"}
                 style={styles.inputIcon}
               />
               <TextInput
@@ -118,10 +121,10 @@ export default function SignUpScreen() {
           <View style={styles.inputContainer}>
             <Text style={styles.inputLabel}>Mot de passe</Text>
             <View style={styles.inputWrapper}>
-              <Feather 
-                name="lock" 
-                size={20} 
-                color={"#6c757d"} 
+              <Feather
+                name="lock"
+                size={20}
+                color={"#6c757d"}
                 style={styles.inputIcon}
               />
               <TextInput
@@ -139,9 +142,9 @@ export default function SignUpScreen() {
                 style={styles.eyeIcon}
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               >
-                <FontAwesome6 
-                  name={showPassword ? "eye" : "eye-slash"} 
-                  size={18} 
+                <FontAwesome6
+                  name={showPassword ? "eye" : "eye-slash"}
+                  size={18}
                   color="#6c757d"
                 />
               </TouchableOpacity>
@@ -152,10 +155,10 @@ export default function SignUpScreen() {
           <View style={styles.inputContainer}>
             <Text style={styles.inputLabel}>Confirmer le mot de passe</Text>
             <View style={styles.inputWrapper}>
-              <Feather 
-                name="shield" 
-                size={20} 
-                color={"#6c757d"} 
+              <Feather
+                name="shield"
+                size={20}
+                color={"#6c757d"}
                 style={styles.inputIcon}
               />
               <TextInput
@@ -173,9 +176,9 @@ export default function SignUpScreen() {
                 style={styles.eyeIcon}
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               >
-                <FontAwesome6 
-                  name={showConfirmPassword ? "eye" : "eye-slash"} 
-                  size={18} 
+                <FontAwesome6
+                  name={showConfirmPassword ? "eye" : "eye-slash"}
+                  size={18}
                   color="#6c757d"
                 />
               </TouchableOpacity>
@@ -184,13 +187,18 @@ export default function SignUpScreen() {
 
           {/* Password Requirements */}
           <View style={styles.passwordRequirements}>
-            <Text style={styles.requirementsTitle}>Le mot de passe doit contenir :</Text>
+            <Text style={styles.requirementsTitle}>
+              Le mot de passe doit contenir :
+            </Text>
             <Text style={styles.requirementItem}>• Au moins 6 caractères</Text>
           </View>
 
           {/* Sign Up Button */}
-          <TouchableOpacity 
-            style={[styles.signUpButton, loading && styles.signUpButtonDisabled]} 
+          <TouchableOpacity
+            style={[
+              styles.signUpButton,
+              loading && styles.signUpButtonDisabled,
+            ]}
             onPress={handleSignUp}
             disabled={loading}
             activeOpacity={0.8}
@@ -203,9 +211,7 @@ export default function SignUpScreen() {
 
         {/* Footer Section */}
         <View style={styles.footerSection}>
-          <Text style={styles.footerText}>
-            Déjà un compte ?{' '}
-          </Text>
+          <Text style={styles.footerText}>Déjà un compte ? </Text>
           <Link href="/sign-in" asChild>
             <TouchableOpacity>
               <Text style={styles.footerLinkText}>Se connecter</Text>
@@ -220,7 +226,7 @@ export default function SignUpScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: "#f8f9fa",
   },
   scrollContainer: {
     flexGrow: 1,
@@ -229,21 +235,18 @@ const styles = StyleSheet.create({
     paddingTop: 60,
   },
   headerSection: {
-    alignItems: 'center',
+    alignItems: "center",
     paddingTop: 40,
     paddingBottom: 40,
-  },
-  logoContainer: {
-    marginBottom: 24,
   },
   logoCircle: {
     width: 80,
     height: 80,
     borderRadius: 40,
     backgroundColor: Colors.orange,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#000",
     shadowOffset: {
       width: 0,
       height: 4,
@@ -254,22 +257,22 @@ const styles = StyleSheet.create({
   },
   welcomeTitle: {
     fontSize: 32,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     color: Colors.primary,
     marginBottom: 8,
-    textAlign: 'center',
+    textAlign: "center",
   },
   welcomeSubtitle: {
     fontSize: 16,
-    color: '#6c757d',
-    textAlign: 'center',
+    color: "#6c757d",
+    textAlign: "center",
     lineHeight: 22,
   },
   formSection: {
-    backgroundColor: 'white',
+    backgroundColor: "white",
     borderRadius: 20,
     padding: 24,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: {
       width: 0,
       height: 2,
@@ -284,16 +287,16 @@ const styles = StyleSheet.create({
   },
   inputLabel: {
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: "600",
     color: Colors.primary,
     marginBottom: 8,
   },
   inputWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'white',
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "white",
     borderWidth: 2,
-    borderColor: '#e9ecef',
+    borderColor: "#e9ecef",
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 4,
@@ -312,27 +315,27 @@ const styles = StyleSheet.create({
     padding: 4,
   },
   passwordRequirements: {
-    backgroundColor: '#f8f9fa',
+    backgroundColor: "#f8f9fa",
     borderRadius: 8,
     padding: 12,
     marginBottom: 24,
   },
   requirementsTitle: {
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: "600",
     color: Colors.primary,
     marginBottom: 4,
   },
   requirementItem: {
     fontSize: 12,
-    color: '#6c757d',
+    color: "#6c757d",
     lineHeight: 16,
   },
   signUpButton: {
     backgroundColor: Colors.orange,
     borderRadius: 12,
     paddingVertical: 16,
-    alignItems: 'center',
+    alignItems: "center",
     shadowColor: Colors.orange,
     shadowOffset: {
       width: 0,
@@ -346,23 +349,23 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
   signUpButtonText: {
-    color: 'white',
+    color: "white",
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
   footerSection: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     paddingBottom: 24,
   },
   footerText: {
     fontSize: 14,
-    color: '#6c757d',
+    color: "#6c757d",
   },
   footerLinkText: {
     color: Colors.orange,
-    fontWeight: '600',
+    fontWeight: "600",
     fontSize: 14,
   },
 });

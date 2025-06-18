@@ -10,6 +10,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Dimensions,
+  Image,
 } from "react-native";
 import { FontAwesome6, Feather, MaterialIcons } from "@expo/vector-icons";
 import { Colors } from "@/constants/Colors";
@@ -57,11 +58,11 @@ export default function SignInScreen() {
       >
         {/* Header Section */}
         <View style={styles.headerSection}>
-          <View style={styles.logoContainer}>
-            <View style={styles.logoCircle}>
-              <MaterialIcons name="security" size={40} color="white" />
-            </View>
-          </View>
+          <Image
+            source={require("../../assets/images/mammo_face_sat_no_bg.png")}
+            style={{ width: 150, height: 150 }}
+            resizeMode="contain"
+          />
           <Text style={styles.welcomeTitle}>Bienvenue</Text>
           <Text style={styles.welcomeSubtitle}>
             Connectez-vous à votre compte
@@ -177,25 +178,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingTop: 40,
     paddingBottom: 40,
-  },
-  logoContainer: {
-    marginBottom: 24,
-  },
-  logoCircle: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: Colors.orange,
-    justifyContent: "center",
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 8,
   },
   welcomeTitle: {
     fontSize: 32,
