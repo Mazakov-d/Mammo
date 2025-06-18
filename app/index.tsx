@@ -14,9 +14,15 @@ import BSConfirmStop from "../components/BSConfirmStop";
 import { Colors, Layout } from "../constants/Colors";
 import { BottomSheetModal } from "@gorhom/bottom-sheet";
 import { AntDesign, Fontisto, Feather } from "@expo/vector-icons";
+import { useAuth } from "@/provider/AuthProvider";
+import { Redirect } from "expo-router";
 
 export default function Index() {
   const router = useRouter();
+  const { session } = useAuth();
+  if (!session) {
+    return <Redirect href="./(auth)/sign-in" />;
+  }
 
   const [onAlert, setOnAlert] = useState(false);
   const [BSConfirmAlertMounted, setBSConfirmAlertMounted] = useState(false);
@@ -60,7 +66,7 @@ export default function Index() {
                   {
                     width: Layout.buttonWidth,
                     height: Layout.buttonHeight,
-                    backgroundColor: Colors.primary,
+                    backgroundColor: Colors.orange,
                     justifyContent: "center",
                     alignItems: "center",
                     borderRadius: Layout.radiusLarge,
@@ -94,7 +100,7 @@ export default function Index() {
                     {
                       width: Layout.buttonWidth,
                       height: Layout.buttonHeight,
-                      backgroundColor: Colors.primary,
+                      backgroundColor: Colors.orange,
                       justifyContent: "center",
                       alignItems: "center",
                       borderRadius: Layout.radiusLarge,
@@ -109,7 +115,7 @@ export default function Index() {
                     {
                       width: Layout.buttonWidth,
                       height: Layout.buttonHeight,
-                      backgroundColor: Colors.primary,
+                      backgroundColor: Colors.orange,
                       justifyContent: "center",
                       alignItems: "center",
                       borderRadius: Layout.radiusLarge,
@@ -126,7 +132,7 @@ export default function Index() {
                   {
                     width: Layout.buttonWidth * 1.5,
                     height: Layout.buttonHeight * 1.5,
-                    backgroundColor: Colors.primary,
+                    backgroundColor: Colors.orange,
                     justifyContent: "center",
                     alignItems: "center",
                     borderRadius: 50,
@@ -238,7 +244,7 @@ const styles = StyleSheet.create<{
     paddingHorizontal: Layout.padding,
   },
   ovalButton: {
-    backgroundColor: Colors.danger,
+    backgroundColor: Colors.red,
     position: "absolute",
     bottom: 100,
     alignSelf: "center",

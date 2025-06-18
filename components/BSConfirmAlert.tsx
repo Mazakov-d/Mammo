@@ -77,14 +77,14 @@ const BSConfirmAlert = forwardRef<BottomSheetModal, BSConfirmAlertProps>(
       >
         <BottomSheetView style={styles.contentContainer}>
           <View style={styles.iconContainer}>
-            <AntDesign name="warning" size={48} color={Colors.danger} />
+            <AntDesign name="warning" size={48} color={Colors.red} />
           </View>
           <Text style={styles.modalTitle}>{title}</Text>
           <Text style={styles.modalText}>{message}</Text>
 
           <View style={styles.confirmButtonWrapper}>
             <TouchableOpacity
-              style={[styles.confirmButton, { backgroundColor: Colors.warning }]}
+              style={[styles.confirmButton, { backgroundColor: Colors.darkRed }]}
               onPress={onConfirm}
               activeOpacity={0.8}
               disabled={autoPressed}
@@ -94,7 +94,7 @@ const BSConfirmAlert = forwardRef<BottomSheetModal, BSConfirmAlertProps>(
                   styles.confirmButtonFill,
                   {
                     width: widthInterpolate,
-                    backgroundColor: Colors.danger,
+                    backgroundColor: Colors.red,
                   },
                 ]}
               />
@@ -115,7 +115,7 @@ export default BSConfirmAlert;
 
 const styles = StyleSheet.create({
   bottomSheetBackground: {
-    backgroundColor: Colors.sheetBackground,
+    backgroundColor: Colors.primary,
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
     shadowColor: Colors.black,
@@ -147,7 +147,7 @@ const styles = StyleSheet.create({
     padding: 8,
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: Colors.danger,
+    shadowColor: Colors.red,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 6,
@@ -179,7 +179,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 0,
-    shadowColor: Colors.danger,
+    shadowColor: Colors.red,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 4,
@@ -204,12 +204,12 @@ const styles = StyleSheet.create({
   },
   closeButton: {
     width: "60%",
-    backgroundColor: Colors.primary,
+    backgroundColor: Colors.orange,
     paddingVertical: 14,
     borderRadius: 12,
     alignItems: "center",
     alignSelf: "center",
-    shadowColor: Colors.primary,
+    shadowColor: Colors.orange,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.18,
     shadowRadius: 4,
