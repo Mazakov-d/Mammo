@@ -14,6 +14,8 @@ export default function RootLayout() {
           <Stack>
             <Stack.Screen name="index" />
             <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+            <Stack.Screen name="setting" />
+            <Stack.Screen name="alerts" />
           </Stack>
         </AuthProvider>
       </BottomSheetModalProvider>
