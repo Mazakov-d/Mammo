@@ -53,12 +53,11 @@ export default function SignUpScreen() {
       password,
     });
 
-    if (data && !error) {
-      Alert.alert(
-        "Succès",
-        "Veuillez vérifier votre email pour confirmer votre inscription.",
-        [{ text: "OK" }]
-      );
+    if (data && !error && data.user) {
+      router.push({
+        pathname: "/(auth)/complete-profile",
+        params: { id: data.user.id, email: data.user.email },
+      });
     }
     if (error) Alert.alert("Erreur", error.message);
     setLoading(false);

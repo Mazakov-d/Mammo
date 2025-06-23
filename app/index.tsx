@@ -1,5 +1,11 @@
 import { Button } from "@react-navigation/elements";
-import React, { useRef, useMemo, useCallback, useState, useEffect } from "react";
+import React, {
+  useRef,
+  useMemo,
+  useCallback,
+  useState,
+  useEffect,
+} from "react";
 import {
   Text,
   View,
@@ -28,7 +34,9 @@ export default function Index() {
   }
   const insets = useSafeAreaInsets();
 
-  const [location, setLocation] = useState<Location.LocationObject | null>(null);
+  const [location, setLocation] = useState<Location.LocationObject | null>(
+    null
+  );
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   useMemo(() => {
@@ -111,6 +119,7 @@ export default function Index() {
                   <>
                     {/* header left: bell */}
                     <Pressable
+                      onPress={() => router.navigate("/alerts")}
                       style={({ pressed }) => [
                         {
                           width: Layout.buttonWidth,
@@ -153,7 +162,7 @@ export default function Index() {
                           },
                         ]}
                       >
-                        <Feather name="user" size={28} color="white" />
+                        <Feather name="users" size={28} color="white" />
                       </Pressable>
                       <Pressable
                         style={({ pressed }) => [
@@ -167,7 +176,7 @@ export default function Index() {
                             opacity: pressed ? 0.5 : 1,
                           },
                         ]}
-                        onPress={() => handleSignOut()}
+                        onPress={() => router.navigate("/setting")}
                       >
                         <AntDesign name="setting" size={28} color="white" />
                       </Pressable>
@@ -286,6 +295,7 @@ export default function Index() {
 }
 
 import type { ViewStyle, TextStyle } from "react-native";
+import { navigate } from "expo-router/build/global-state/routing";
 
 const styles = StyleSheet.create<{
   container: ViewStyle;
