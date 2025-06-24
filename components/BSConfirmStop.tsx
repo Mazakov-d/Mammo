@@ -1,5 +1,5 @@
 import React, { forwardRef } from "react";
-import { Text, StyleSheet, TouchableOpacity, View } from "react-native";
+import { Text, StyleSheet, TouchableOpacity, View , Image} from "react-native";
 import { BottomSheetModal, BottomSheetView } from "@gorhom/bottom-sheet";
 import { AntDesign } from "@expo/vector-icons";
 import { Colors } from "../constants/Colors";
@@ -40,8 +40,11 @@ const BSConfirmStop = forwardRef<BottomSheetModal, BSConfirmStopProps>(
       >
         <BottomSheetView style={styles.contentContainer}>
           <View style={styles.iconContainer}>
-            <AntDesign name="closecircleo" size={48} color={Colors.darkRed} />
-          </View>
+			<Image
+			  source={require("@/assets/images/mammo_ouf.png")}
+			  style={{ width: 150, height: 150 }}
+			  resizeMode="contain"
+			/>          </View>
           <Text style={styles.modalTitle}>{title}</Text>
           <Text style={styles.modalText}>{message}</Text>
 
@@ -68,7 +71,7 @@ export default BSConfirmStop;
 
 const styles = StyleSheet.create({
   bottomSheetBackground: {
-    backgroundColor: Colors.primary,
+    backgroundColor: Colors.white,
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
     shadowColor: Colors.black,
@@ -95,26 +98,22 @@ const styles = StyleSheet.create({
   },
   iconContainer: {
     marginBottom: 12,
-    backgroundColor: Colors.whiteAlt,
+    backgroundColor: Colors.white,
     borderRadius: 32,
     padding: 8,
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: Colors.darkRed,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 6,
     elevation: 6,
   },
   modalTitle: {
-    color: Colors.white,
+    color: Colors.grayDark,
     fontSize: 22,
     fontWeight: "bold",
     marginBottom: 10,
     textAlign: "center",
   },
   modalText: {
-    color: Colors.textSecondary,
+    color: Colors.gray,
     fontSize: 17,
     marginBottom: 32,
     textAlign: "center",

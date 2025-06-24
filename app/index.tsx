@@ -460,13 +460,6 @@ export default function Index() {
         </TouchableOpacity>
       )}
 
-      {/* Alert mode indicator */}
-      {onAlert === true && (
-        <View style={styles.alertModeIndicator}>
-          <Text style={styles.alertModeText}>🚨 SUIVI PRÉCIS ACTIVÉ</Text>
-          <Text style={styles.alertModeSubtext}>Tous les 5 mètres</Text>
-        </View>
-      )}
 
       {BSConfirmAlertMounted && (
         <BSConfirmAlert
