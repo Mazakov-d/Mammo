@@ -1,4 +1,4 @@
-// app/index.tsx - Updated version with enhanced real-time updates
+// app/index.tsx - Updated with friends system
 
 import { Button } from "@react-navigation/elements";
 import React, {
@@ -94,9 +94,9 @@ export default function Index() {
     console.log('🔄 Setting up enhanced real-time subscription');
     
     // Enhanced subscription with better error handling and reconnection
-    locationSubscription.current = locationTracker.subscribeToLocationChanges(
+    locationSubscription.current = locationTracker.subscribeToVisibleLocationChanges(
       (locations) => {
-        console.log(`📊 Real-time update: ${locations.length} user locations`);
+        console.log(`📊 Real-time update: ${locations.length} visible user locations`);
         setUserLocations(locations);
         setIsRealtimeConnected(true);
         
@@ -141,9 +141,9 @@ export default function Index() {
 
   const loadUserLocations = async () => {
     try {
-      const locations = await locationTracker.getAllUserLocations();
+      const locations = await locationTracker.getVisibleUserLocations();
       setUserLocations(locations);
-      console.log(`📊 Loaded ${locations.length} user locations`);
+      console.log(`📊 Loaded ${locations.length} visible user locations`);
     } catch (error) {
       console.error('❌ Failed to load user locations:', error);
     }
@@ -319,6 +319,7 @@ export default function Index() {
                       }}
                     >
                       <Pressable
+                        onPress={() => router.navigate("/users")}
                         style={({ pressed }) => [
                           {
                             width: Layout.buttonWidth,
@@ -442,7 +443,7 @@ export default function Index() {
           onConfirm={handleConfirmModalPress}
           onCancel={handleCancelModalPress}
           title={"Confirmation d'alerte"}
-          message={"Nous allons alerter tous les utilisateurs autour de vous"}
+          message={"Nous allons alerter tous vos amis"}
           confirmLabel={"Confirmer"}
           cancelLabel={"Annuler"}
           confirmDelayMs={5000}

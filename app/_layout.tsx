@@ -16,6 +16,8 @@ export default function RootLayout() {
             <Stack.Screen name="(auth)" options={{ headerShown: false }} />
             <Stack.Screen name="setting" />
             <Stack.Screen name="alerts" />
+            <Stack.Screen name="users" />
+            <Stack.Screen name="add-friends" />
           </Stack>
         </AuthProvider>
       </BottomSheetModalProvider>

@@ -14,7 +14,7 @@ export default function AlertsScreen() {
     loadAlertUsers();
     
     // Subscribe to real-time updates
-    const subscription = locationTracker.subscribeToLocationChanges((locations) => {
+    const subscription = locationTracker.subscribeToVisibleLocationChanges((locations) => {
       const alerts = locations.filter(loc => loc.is_alert);
       setAlertUsers(alerts);
     });
@@ -29,7 +29,7 @@ export default function AlertsScreen() {
   const loadAlertUsers = async () => {
     try {
       setLoading(true);
-      const locations = await locationTracker.getAllUserLocations();
+      const locations = await locationTracker.getVisibleUserLocations();
       const alerts = locations.filter(loc => loc.is_alert);
       setAlertUsers(alerts);
     } catch (error) {

@@ -1,4 +1,4 @@
-// lib/locationTracker.ts - Fixed version
+// lib/locationTracker.ts - Complete version with visibility rules
 
 import { supabase } from './supabase';
 import * as Location from 'expo-location';
@@ -38,7 +38,7 @@ class LocationTracker {
       maxAge: 2 * 60 * 1000           // 2 minutes max age
     },
     ALERT_MODE: {
-      distanceFilter: 5,               // 5 meters movement
+      distanceInterval: 5,               // 5 meters movement
       accuracy: Location.Accuracy.High,
       maxAge: 10 * 1000               // 10 seconds max age
     }
@@ -96,8 +96,8 @@ class LocationTracker {
       this.backgroundInterval = null;
     }
 
-    // Remove from map
-    await this.goOffline();
+    // Don't remove from map - keep location stored
+    console.log('📍 Location kept in database');
   }
 
   private async startBackgroundTracking() {
@@ -132,7 +132,7 @@ class LocationTracker {
       {
         accuracy: this.CONFIG.ALERT_MODE.accuracy,
         timeInterval: 2000,        // Check every 2 seconds
-        distanceInterval: this.CONFIG.ALERT_MODE.distanceFilter, // Update every 5 meters
+        distanceInterval: this.CONFIG.ALERT_MODE.distanceInterval, // Update every 5 meters
       },
       async (location) => {
         console.log('📍 Movement detected in alert mode:', 
@@ -195,6 +195,7 @@ class LocationTracker {
           longitude: location.longitude,
           is_alert: this.isAlertMode,
           last_seen: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
         }, {
           onConflict: 'user_id'
         });
@@ -258,27 +259,6 @@ class LocationTracker {
     await this.sendImmediateUpdate();
   }
 
-  private async goOffline() {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const { error } = await supabase
-        .from('user_locations')
-        .delete()
-        .eq('user_id', user.id);
-
-      if (error) {
-        console.error('❌ Failed to go offline:', error);
-        return;
-      }
-        
-      console.log('✅ Removed from map (offline)');
-    } catch (error) {
-      console.error('❌ Failed to go offline:', error);
-    }
-  }
-
   // Public methods for your app
   async activateAlert() {
     await this.switchToAlertMode();
@@ -288,13 +268,18 @@ class LocationTracker {
     await this.switchToBackgroundMode();
   }
 
-  // Get all user locations for the map - Fixed query
-  async getAllUserLocations(): Promise<UserLocation[]> {
+  // Get visible user locations based on visibility rules:
+  // - If user is in alert mode (is_alert = true): visible to everyone
+  // - If user is NOT in alert mode (is_alert = false): visible only to friends
+  async getVisibleUserLocations(): Promise<UserLocation[]> {
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return [];
+
       const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString();
-      
-      // First try with join
-      let { data, error } = await supabase
+
+      // First, get all users in alert mode (visible to everyone)
+      const { data: alertUsers, error: alertError } = await supabase
         .from('user_locations')
         .select(`
           *,
@@ -303,38 +288,84 @@ class LocationTracker {
             avatar_url
           )
         `)
-        .gte('updated_at', thirtyMinutesAgo)
-        .order('is_alert', { ascending: false });
+        .eq('is_alert', true)
+        .gte('updated_at', thirtyMinutesAgo);
 
-      if (error) {
-        console.log('⚠️ Join failed, trying without profile data:', error.message);
-        // Fallback: just get locations without profile data
-        const fallbackResult = await supabase
-          .from('user_locations')
-          .select('*')
-          .gte('updated_at', thirtyMinutesAgo)
-          .order('is_alert', { ascending: false });
-        
-        if (fallbackResult.error) throw fallbackResult.error;
-        return fallbackResult.data || [];
+      if (alertError) {
+        console.error('❌ Failed to get alert users:', alertError);
+        return [];
       }
 
-      return data || [];
+      // Then, get friends who are NOT in alert mode
+      const { data: contacts, error: contactsError } = await supabase
+        .from('contacts')
+        .select('*')
+        .or(`user_id.eq.${user.id},contact_id.eq.${user.id}`);
+
+      if (contactsError) {
+        console.error('❌ Failed to get contacts:', contactsError);
+        return alertUsers || [];
+      }
+
+      // Extract friend IDs
+      const friendIds = contacts?.map(contact => 
+        contact.user_id === user.id ? contact.contact_id : contact.user_id
+      ) || [];
+
+      // Add current user to see themselves
+      friendIds.push(user.id);
+
+      // Get friends' locations who are NOT in alert mode
+      const { data: friendLocations, error: friendsError } = await supabase
+        .from('user_locations')
+        .select(`
+          *,
+          profiles (
+            full_name,
+            avatar_url
+          )
+        `)
+        .in('user_id', friendIds)
+        .eq('is_alert', false)
+        .gte('updated_at', thirtyMinutesAgo);
+
+      if (friendsError) {
+        console.error('❌ Failed to get friend locations:', friendsError);
+        return alertUsers || [];
+      }
+
+      // Combine alert users (visible to all) and friends (not in alert)
+      const allVisibleUsers = [...(alertUsers || []), ...(friendLocations || [])];
+      
+      // Remove duplicates (in case a friend is also in alert mode)
+      const uniqueUsers = allVisibleUsers.filter((user, index, self) =>
+        index === self.findIndex((u) => u.user_id === user.user_id)
+      );
+
+      // Sort: alerts first, then by last update
+      uniqueUsers.sort((a, b) => {
+        if (a.is_alert && !b.is_alert) return -1;
+        if (!a.is_alert && b.is_alert) return 1;
+        return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
+      });
+
+      console.log(`👀 Visible users: ${uniqueUsers.length} (${alertUsers?.length || 0} alerts, ${friendLocations?.length || 0} friends)`);
+      return uniqueUsers;
     } catch (error) {
-      console.error('❌ Failed to load user locations:', error);
+      console.error('❌ Failed to load visible user locations:', error);
       return [];
     }
   }
 
-  // Subscribe to real-time location changes - Fixed to prevent multiple subscriptions
-  subscribeToLocationChanges(callback: (locations: UserLocation[]) => void) {
+  // Subscribe to real-time location changes with visibility rules
+  subscribeToVisibleLocationChanges(callback: (locations: UserLocation[]) => void) {
     // Unsubscribe from existing subscription if any
     if (this.realtimeSubscription) {
       this.realtimeSubscription.unsubscribe();
     }
 
     this.realtimeSubscription = supabase
-      .channel('user_locations_realtime')
+      .channel('visible_locations_realtime')
       .on(
         'postgres_changes',
         {
@@ -344,13 +375,76 @@ class LocationTracker {
         },
         async (payload) => {
           console.log('📍 Real-time location change detected');
-          const locations = await this.getAllUserLocations();
+          const locations = await this.getVisibleUserLocations();
+          callback(locations);
+        }
+      )
+      // Also listen to contacts changes to update when friends are added/removed
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'contacts'
+        },
+        async (payload) => {
+          console.log('👥 Real-time contacts change detected');
+          const locations = await this.getVisibleUserLocations();
           callback(locations);
         }
       )
       .subscribe();
 
     return this.realtimeSubscription;
+  }
+
+  // Get friends' locations only (for friends list screen)
+  async getFriendsLocations(): Promise<UserLocation[]> {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return [];
+
+      // Get all contacts where current user is either user_id or contact_id
+      const { data: contacts, error: contactsError } = await supabase
+        .from('contacts')
+        .select('*')
+        .or(`user_id.eq.${user.id},contact_id.eq.${user.id}`);
+
+      if (contactsError) throw contactsError;
+
+      // Extract friend IDs
+      const friendIds = contacts?.map(contact => 
+        contact.user_id === user.id ? contact.contact_id : contact.user_id
+      ) || [];
+
+      if (friendIds.length === 0) return [];
+
+      const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+      
+      // Get all friends' locations (both in alert and not in alert)
+      let { data, error } = await supabase
+        .from('user_locations')
+        .select(`
+          *,
+          profiles (
+            full_name,
+            avatar_url
+          )
+        `)
+        .in('user_id', friendIds)
+        .gte('updated_at', thirtyMinutesAgo)
+        .order('is_alert', { ascending: false });
+
+      if (error) {
+        console.log('⚠️ Failed to get friends locations:', error.message);
+        return [];
+      }
+
+      return data || [];
+    } catch (error) {
+      console.error('❌ Failed to load friends locations:', error);
+      return [];
+    }
   }
 
   // Cleanup method to unsubscribe from realtime
@@ -377,6 +471,18 @@ class LocationTracker {
   async forceLocationUpdate() {
     console.log('🔄 Manual location update requested');
     await this.sendLocationUpdate('immediate');
+  }
+
+  // DEPRECATED: Use getVisibleUserLocations instead
+  async getAllUserLocations(): Promise<UserLocation[]> {
+    console.warn('⚠️ getAllUserLocations is deprecated. Use getVisibleUserLocations instead.');
+    return this.getVisibleUserLocations();
+  }
+
+  // DEPRECATED: Use subscribeToVisibleLocationChanges instead
+  subscribeToLocationChanges(callback: (locations: UserLocation[]) => void) {
+    console.warn('⚠️ subscribeToLocationChanges is deprecated. Use subscribeToVisibleLocationChanges instead.');
+    return this.subscribeToVisibleLocationChanges(callback);
   }
 }
 
