@@ -169,10 +169,7 @@ export default function Index() {
       setBSConfirmAlertMounted(false);
       bottomSheetModalRef.current?.dismiss();
       
-      Alert.alert(
-        "🚨 Mode Alerte Activé", 
-        "Votre position est maintenant suivie précisément et partagée avec tous les utilisateurs"
-      );
+      // Removed Alert.alert - no more popup notification
     } catch (error) {
       console.error('❌ Error activating alert mode:', error);
       Alert.alert("Erreur", "Impossible d'activer le mode alerte");
@@ -191,10 +188,7 @@ export default function Index() {
       setShowStopSheet(false);
       stopSheetRef.current?.dismiss();
       
-      Alert.alert(
-        "✅ Alerte Désactivée", 
-        "Retour au mode arrière-plan"
-      );
+      // Removed Alert.alert - no more popup notification
     } catch (error) {
       console.error('❌ Error deactivating alert mode:', error);
       Alert.alert("Erreur", "Impossible de désactiver l'alerte");
@@ -213,10 +207,9 @@ export default function Index() {
       console.log('🔄 Manual refresh requested');
       await locationTracker.forceLocationUpdate();
       await loadUserLocations();
-      Alert.alert("✅ Position mise à jour", "Votre position a été actualisée");
+      // Removed Alert.alert - no more popup notification
     } catch (error) {
       console.error('❌ Manual refresh failed:', error);
-      Alert.alert("Erreur", "Impossible de mettre à jour la position");
     }
   }, []);
 
