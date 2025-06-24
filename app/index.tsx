@@ -1,3 +1,5 @@
+// app/index.tsx - Updated version with enhanced real-time updates
+
 import { Button } from "@react-navigation/elements";
 import React, {
   useRef,
@@ -42,6 +44,7 @@ export default function Index() {
   const [onAlert, setOnAlert] = useState(false);
   const [BSConfirmAlertMounted, setBSConfirmAlertMounted] = useState(false);
   const [showStopSheet, setShowStopSheet] = useState(false);
+  const [isRealtimeConnected, setIsRealtimeConnected] = useState(false);
   
   const bottomSheetModalRef = useRef<BottomSheetModal>(null);
   const stopSheetRef = useRef<BottomSheetModal>(null);
@@ -51,15 +54,13 @@ export default function Index() {
 
   // Initialize location tracking when component mounts
   useEffect(() => {
-    // Prevent multiple initializations
     if (isInitialized.current) return;
     isInitialized.current = true;
 
     initializeLocationTracking();
-    setupRealtimeSubscription();
+    setupEnhancedRealtimeSubscription();
 
     return () => {
-      // Cleanup on unmount
       cleanup();
       isInitialized.current = false;
     };
@@ -69,20 +70,17 @@ export default function Index() {
     try {
       console.log('🚀 Initializing location tracking...');
       
-      // Get initial location
       let { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== "granted") {
         setErrorMsg("Permission to access location was denied");
         return;
       }
+      
       let loc = await Location.getCurrentPositionAsync({});
       console.log("Location:", loc);
       setLocation(loc);
       
-      // Start location tracking in background mode
       await locationTracker.startTracking(false);
-      
-      // Load initial user locations
       await loadUserLocations();
       
       console.log('✅ Location tracking initialized');
@@ -92,14 +90,17 @@ export default function Index() {
     }
   };
 
-  const setupRealtimeSubscription = () => {
-    // Subscribe to real-time location changes from other users
+  const setupEnhancedRealtimeSubscription = () => {
+    console.log('🔄 Setting up enhanced real-time subscription');
+    
+    // Enhanced subscription with better error handling and reconnection
     locationSubscription.current = locationTracker.subscribeToLocationChanges(
       (locations) => {
-        console.log(`📊 Received ${locations.length} user locations`);
+        console.log(`📊 Real-time update: ${locations.length} user locations`);
         setUserLocations(locations);
+        setIsRealtimeConnected(true);
         
-        // Update current user's location from the data
+        // Update current user's location and alert status
         const currentUser = locations.find(loc => loc.user_id === session?.user?.id);
         if (currentUser) {
           setLocation({
@@ -114,9 +115,28 @@ export default function Index() {
             },
             timestamp: Date.now(),
           });
+          
+          // Auto-sync alert status
+          if (currentUser.is_alert !== onAlert) {
+            console.log(`🔄 Auto-syncing alert status: ${currentUser.is_alert}`);
+            setOnAlert(currentUser.is_alert);
+          }
         }
       }
     );
+
+    // Monitor connection status
+    const checkConnection = setInterval(() => {
+      const status = locationTracker.getStatus();
+      setIsRealtimeConnected(status.hasRealtimeSubscription);
+      
+      if (!status.hasRealtimeSubscription) {
+        console.log('⚠️ Real-time connection lost, attempting to reconnect...');
+        setupEnhancedRealtimeSubscription();
+      }
+    }, 30000); // Check every 30 seconds
+
+    return () => clearInterval(checkConnection);
   };
 
   const loadUserLocations = async () => {
@@ -132,16 +152,13 @@ export default function Index() {
   const cleanup = async () => {
     console.log('🧹 Cleaning up location tracking...');
     
-    // Stop location tracking
     await locationTracker.stopTracking();
     
-    // Unsubscribe from real-time updates
     if (locationSubscription.current) {
       locationSubscription.current.unsubscribe();
       locationSubscription.current = null;
     }
     
-    // Also unsubscribe using the tracker's method
     locationTracker.unsubscribeFromRealtimeChanges();
   };
 
@@ -162,14 +179,12 @@ export default function Index() {
       console.log('🚨 ACTIVATING ALERT MODE');
       console.log('📍 Now tracking every 5 meters of movement');
       
-      // Switch to alert mode (5-meter movement tracking)
       await locationTracker.activateAlert();
       
       setOnAlert(true);
       setBSConfirmAlertMounted(false);
       bottomSheetModalRef.current?.dismiss();
       
-      // Removed Alert.alert - no more popup notification
     } catch (error) {
       console.error('❌ Error activating alert mode:', error);
       Alert.alert("Erreur", "Impossible d'activer le mode alerte");
@@ -181,14 +196,12 @@ export default function Index() {
       console.log('✅ DEACTIVATING ALERT MODE');
       console.log('📅 Returning to background mode');
       
-      // Switch back to background mode
       await locationTracker.deactivateAlert();
       
       setOnAlert(false);
       setShowStopSheet(false);
       stopSheetRef.current?.dismiss();
       
-      // Removed Alert.alert - no more popup notification
     } catch (error) {
       console.error('❌ Error deactivating alert mode:', error);
       Alert.alert("Erreur", "Impossible de désactiver l'alerte");
@@ -198,18 +211,6 @@ export default function Index() {
   const handleSheetChanges = useCallback((index: number) => {
     if (index === -1) {
       setBSConfirmAlertMounted(false);
-    }
-  }, []);
-
-  // Manual refresh function
-  const handleManualRefresh = useCallback(async () => {
-    try {
-      console.log('🔄 Manual refresh requested');
-      await locationTracker.forceLocationUpdate();
-      await loadUserLocations();
-      // Removed Alert.alert - no more popup notification
-    } catch (error) {
-      console.error('❌ Manual refresh failed:', error);
     }
   }, []);
 
@@ -226,14 +227,11 @@ export default function Index() {
 
   const renderUserMarkers = () => {
     return userLocations.map((userLocation) => {
-      // Don't show current user's marker
       if (userLocation.user_id === session?.user?.id) return null;
 
       const isAlert = userLocation.is_alert;
-      // Updated to use profiles.full_name instead of profile.first_name + last_name
       const userName = userLocation.profiles?.full_name || 'Utilisateur';
 
-      // Calculate time since last update
       const lastSeen = new Date(userLocation.updated_at);
       const minutesAgo = Math.floor((Date.now() - lastSeen.getTime()) / 60000);
       
@@ -262,7 +260,6 @@ export default function Index() {
     supabase.auth.signOut();
   };
 
-  // Get statistics for display
   const alertUsers = userLocations.filter(u => u.is_alert);
   const onlineUsers = userLocations.length;
 
@@ -280,12 +277,11 @@ export default function Index() {
                   flexDirection: "row",
                   alignItems: "center",
                   justifyContent: "space-between",
-                  paddingHorizontal: Layout.padding,
+                  paddingHorizontal: 10,
                 }}
               >
                 {onAlert === false ? (
                   <>
-                    {/* header left: bell */}
                     <Pressable
                       onPress={() => router.navigate("/alerts")}
                       style={({ pressed }) => [
@@ -314,12 +310,12 @@ export default function Index() {
                         </View>
                       )}
                     </Pressable>
-                    {/* header right: user/settings */}
+                    
                     <View
                       style={{
                         flexDirection: "row",
                         alignItems: "center",
-                        gap: 10,
+                        gap: 1,
                       }}
                     >
                       <Pressable
@@ -341,23 +337,13 @@ export default function Index() {
                         </View>
                       </Pressable>
                       
-                      {/* Manual refresh button */}
-                      <Pressable
-                        onPress={handleManualRefresh}
-                        style={({ pressed }) => [
-                          {
-                            width: Layout.buttonWidth,
-                            height: Layout.buttonHeight,
-                            backgroundColor: Colors.orange,
-                            justifyContent: "center",
-                            alignItems: "center",
-                            borderRadius: Layout.radiusLarge,
-                            opacity: pressed ? 0.5 : 1,
-                          },
-                        ]}
-                      >
-                        <Feather name="refresh-cw" size={24} color="white" />
-                      </Pressable>
+                      {/* Real-time connection status indicator */}
+                      <View style={[
+                        styles.connectionStatus,
+                        { backgroundColor: isRealtimeConnected ? '#4CAF50' : '#FF5722' }
+                      ]}>
+                        <View style={styles.connectionDot} />
+                      </View>
                       
                       <Pressable
                         style={({ pressed }) => [
@@ -378,7 +364,6 @@ export default function Index() {
                     </View>
                   </>
                 ) : (
-                  // onAlert === true: show STOP button
                   <Pressable
                     style={({ pressed }) => [
                       {
@@ -438,15 +423,6 @@ export default function Index() {
           latitudeDelta: 0.0922,
           longitudeDelta: 0.0421,
         }}
-        onRegionChangeComplete={(region) => {
-          console.log("Region changed:", region);
-        }}
-        onUserLocationChange={(e) => {
-          console.log("User location changed:", e.nativeEvent.coordinate);
-        }}
-        onMapReady={() => {
-          console.log("Map is ready");
-        }}
       >
         {renderUserMarkers()}
       </MapView>
@@ -459,7 +435,6 @@ export default function Index() {
           <Text style={styles.buttonText}>SOS</Text>
         </TouchableOpacity>
       )}
-
 
       {BSConfirmAlertMounted && (
         <BSConfirmAlert
@@ -495,36 +470,13 @@ export default function Index() {
   );
 }
 
-import type { ViewStyle, TextStyle } from "react-native";
-import { navigate } from "expo-router/build/global-state/routing";
-
-const styles = StyleSheet.create<{
-  container: ViewStyle;
-  map: ViewStyle;
-  ovalButton: ViewStyle;
-  buttonText: TextStyle;
-  userCountBadge: ViewStyle;
-  userCountText: TextStyle;
-  alertBadge: ViewStyle;
-  alertBadgeText: TextStyle;
-  alertModeIndicator: ViewStyle;
-  alertModeText: TextStyle;
-  alertModeSubtext: TextStyle;
-}>({
+const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
   map: {
     width: "100%",
     height: "100%",
-  },
-  buttonContainer: {
-    position: "absolute",
-    bottom: 100,
-    left: 0,
-    right: 0,
-    alignItems: "center",
-    paddingHorizontal: Layout.padding,
   },
   ovalButton: {
     backgroundColor: Colors.red,
@@ -578,30 +530,17 @@ const styles = StyleSheet.create<{
     fontSize: 12,
     fontWeight: 'bold',
   },
-  alertModeIndicator: {
-    position: 'absolute',
-    bottom: 120,
-    alignSelf: 'center',
-    backgroundColor: Colors.red,
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: Layout.radiusLarge,
-    shadowColor: Colors.red,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
+  connectionStatus: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  alertModeText: {
-    color: Colors.white,
-    fontSize: 16,
-    fontWeight: 'bold',
-    textAlign: 'center',
-  },
-  alertModeSubtext: {
-    color: Colors.white,
-    fontSize: 12,
-    textAlign: 'center',
-    opacity: 0.9,
+  connectionDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: 'white',
   },
 });
