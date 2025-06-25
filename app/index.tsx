@@ -320,7 +320,7 @@ export default function Index() {
                       }}
                     >
                       <Pressable
-                        onPress={() => router.navigate("/users")}
+                        onPress={() => router.navigate("/contacts")}
                         style={({ pressed }) => [
                           {
                             width: Layout.buttonWidth,
@@ -350,7 +350,7 @@ export default function Index() {
                             opacity: pressed ? 0.5 : 1,
                           },
                         ]}
-                        onPress={() => router.navigate("/setting")}
+                        onPress={() => router.navigate("/settings")}
                       >
                         <AntDesign name="setting" size={28} color="white" />
                       </Pressable>
