@@ -1,4 +1,4 @@
-// lib/locationTracker.ts - Updated with new friends structure
+// lib/locationTracker.ts - Improved with better real-time functionality
 
 import { supabase } from './supabase';
 import * as Location from 'expo-location';
@@ -29,6 +29,7 @@ class LocationTracker {
   private isAlertMode: boolean = false;
   private isActive: boolean = false;
   private realtimeSubscription: any = null;
+  private realtimeCallbacks: Set<(locations: UserLocation[]) => void> = new Set();
 
   // Configuration
   private readonly CONFIG = {
@@ -73,6 +74,9 @@ class LocationTracker {
 
     // Send immediate location update when starting
     await this.sendImmediateUpdate();
+    
+    // Setup real-time subscription if not already active
+    this.setupRealtimeSubscription();
   }
 
   async stopTracking() {
@@ -98,6 +102,94 @@ class LocationTracker {
 
     // Don't remove from map - keep location stored
     console.log('📍 Location kept in database');
+  }
+
+  private setupRealtimeSubscription() {
+    // Don't create multiple subscriptions
+    if (this.realtimeSubscription) {
+      console.log('📡 Real-time subscription already exists');
+      return;
+    }
+
+    console.log('📡 Setting up real-time subscription for location changes');
+    
+    this.realtimeSubscription = supabase
+      .channel('location_tracker_realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'user_locations'
+        },
+        async (payload) => {
+          console.log('📍 Real-time location change:', payload.eventType, (payload.new as { user_id?: string })?.user_id);
+          await this.notifyCallbacks();
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'contacts'
+        },
+        async (payload) => {
+          console.log('👥 Real-time contacts change:', payload.eventType);
+          await this.notifyCallbacks();
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'profiles'
+        },
+        async (payload) => {
+          console.log('👤 Real-time profile change:', payload.eventType);
+          await this.notifyCallbacks();
+        }
+      )
+      .subscribe((status) => {
+        console.log(`📡 Real-time subscription status: ${status}`);
+        
+        if (status === 'SUBSCRIBED') {
+          console.log('✅ Real-time subscription active');
+        } else if (status === 'CHANNEL_ERROR') {
+          console.log('❌ Real-time subscription error, will retry');
+          // Retry connection after delay
+          setTimeout(() => {
+            this.reconnectRealtime();
+          }, 5000);
+        }
+      });
+  }
+
+  private async notifyCallbacks() {
+    try {
+      const locations = await this.getVisibleUserLocations();
+      this.realtimeCallbacks.forEach(callback => {
+        try {
+          callback(locations);
+        } catch (error) {
+          console.error('❌ Error in real-time callback:', error);
+        }
+      });
+    } catch (error) {
+      console.error('❌ Error getting locations for real-time update:', error);
+    }
+  }
+
+  private reconnectRealtime() {
+    console.log('🔄 Reconnecting real-time subscription...');
+    
+    if (this.realtimeSubscription) {
+      this.realtimeSubscription.unsubscribe();
+      this.realtimeSubscription = null;
+    }
+    
+    this.setupRealtimeSubscription();
   }
 
   private async startBackgroundTracking() {
@@ -159,7 +251,6 @@ class LocationTracker {
       
       const location = await Location.getCurrentPositionAsync({
         accuracy: config.accuracy,
-        // maximumAge: config.maxAge,
       });
 
       await this.handleLocationUpdate(location, source);
@@ -210,6 +301,12 @@ class LocationTracker {
         location.longitude.toFixed(6),
         this.isAlertMode ? '🚨 ALERT' : '📱 Background'
       );
+      
+      // Force real-time notification after database update
+      setTimeout(() => {
+        this.notifyCallbacks();
+      }, 500);
+      
     } catch (error) {
       console.error('❌ Failed to update location in database:', error);
     }
@@ -355,45 +452,32 @@ class LocationTracker {
     }
   }
 
-  // Subscribe to real-time location changes with visibility rules
+  // Enhanced subscription method with better callback management
   subscribeToVisibleLocationChanges(callback: (locations: UserLocation[]) => void) {
-    // Unsubscribe from existing subscription if any
-    if (this.realtimeSubscription) {
-      this.realtimeSubscription.unsubscribe();
-    }
+    // Add callback to the set
+    this.realtimeCallbacks.add(callback);
+    
+    // Setup real-time subscription if not already active
+    this.setupRealtimeSubscription();
+    
+    // Send initial data
+    this.getVisibleUserLocations().then(locations => {
+      callback(locations);
+    }).catch(error => {
+      console.error('❌ Failed to get initial locations:', error);
+    });
 
-    this.realtimeSubscription = supabase
-      .channel('visible_locations_realtime')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'user_locations'
-        },
-        async (payload) => {
-          console.log('📍 Real-time location change detected');
-          const locations = await this.getVisibleUserLocations();
-          callback(locations);
+    // Return unsubscribe function
+    return {
+      unsubscribe: () => {
+        this.realtimeCallbacks.delete(callback);
+        
+        // If no more callbacks, clean up subscription
+        if (this.realtimeCallbacks.size === 0) {
+          this.unsubscribeFromRealtimeChanges();
         }
-      )
-      // Also listen to contacts changes to update when friends are added/removed
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'contacts'
-        },
-        async (payload) => {
-          console.log('👥 Real-time contacts change detected');
-          const locations = await this.getVisibleUserLocations();
-          callback(locations);
-        }
-      )
-      .subscribe();
-
-    return this.realtimeSubscription;
+      }
+    };
   }
 
   // Get friends' locations only (for friends list screen) - UPDATED
@@ -447,9 +531,13 @@ class LocationTracker {
   // Cleanup method to unsubscribe from realtime
   unsubscribeFromRealtimeChanges() {
     if (this.realtimeSubscription) {
+      console.log('🧹 Unsubscribing from real-time changes');
       this.realtimeSubscription.unsubscribe();
       this.realtimeSubscription = null;
     }
+    
+    // Clear all callbacks
+    this.realtimeCallbacks.clear();
   }
 
   // Check current status
@@ -460,7 +548,8 @@ class LocationTracker {
       lastLocation: this.lastKnownLocation,
       hasMovementTracking: !!this.locationSubscription,
       hasBackgroundInterval: !!this.backgroundInterval,
-      hasRealtimeSubscription: !!this.realtimeSubscription
+      hasRealtimeSubscription: !!this.realtimeSubscription,
+      callbackCount: this.realtimeCallbacks.size
     };
   }
 
@@ -468,6 +557,17 @@ class LocationTracker {
   async forceLocationUpdate() {
     console.log('🔄 Manual location update requested');
     await this.sendLocationUpdate('immediate');
+    
+    // Force notification to all callbacks
+    setTimeout(() => {
+      this.notifyCallbacks();
+    }, 1000);
+  }
+
+  // Force refresh of all real-time subscribers
+  async refreshSubscribers() {
+    console.log('🔄 Refreshing all subscribers...');
+    await this.notifyCallbacks();
   }
 
   // DEPRECATED: Use getVisibleUserLocations instead
