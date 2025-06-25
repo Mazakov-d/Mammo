@@ -333,9 +333,6 @@ export default function Index() {
                         ]}
                       >
                         <Feather name="users" size={28} color="white" />
-                        <View style={styles.userCountBadge}>
-                          <Text style={styles.userCountText}>{onlineUsers}</Text>
-                        </View>
                       </Pressable>
                       <Pressable
                         style={({ pressed }) => [
