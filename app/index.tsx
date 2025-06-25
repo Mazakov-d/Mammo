@@ -52,6 +52,7 @@ export default function Index() {
   const locationSubscription = useRef<any>(null);
   const isInitialized = useRef(false);
 
+  
   // Initialize location tracking when component mounts
   useEffect(() => {
     if (isInitialized.current) return;
@@ -315,7 +316,7 @@ export default function Index() {
                       style={{
                         flexDirection: "row",
                         alignItems: "center",
-                        gap: 1,
+                        gap: 10,
                       }}
                     >
                       <Pressable
@@ -337,15 +338,6 @@ export default function Index() {
                           <Text style={styles.userCountText}>{onlineUsers}</Text>
                         </View>
                       </Pressable>
-                      
-                      {/* Real-time connection status indicator */}
-                      <View style={[
-                        styles.connectionStatus,
-                        { backgroundColor: isRealtimeConnected ? '#4CAF50' : '#FF5722' }
-                      ]}>
-                        <View style={styles.connectionDot} />
-                      </View>
-                      
                       <Pressable
                         style={({ pressed }) => [
                           {
@@ -530,13 +522,6 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 12,
     fontWeight: 'bold',
-  },
-  connectionStatus: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   connectionDot: {
     width: 6,
