@@ -11,6 +11,7 @@ import {
   Platform,
   Dimensions,
   Image,
+  Pressable,
 } from "react-native";
 import { FontAwesome6, Feather, MaterialIcons } from "@expo/vector-icons";
 import { Colors } from "@/constants/Colors";

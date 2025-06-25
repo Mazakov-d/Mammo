@@ -1,5 +1,13 @@
 import React, { forwardRef, useEffect, useRef, useState } from "react";
-import { Text, StyleSheet, TouchableOpacity, View, Animated, Easing } from "react-native";
+import {
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  View,
+  Animated,
+  Easing,
+  Image,
+} from "react-native";
 import { BottomSheetModal, BottomSheetView } from "@gorhom/bottom-sheet";
 import { AntDesign } from "@expo/vector-icons";
 import { Colors } from "../constants/Colors";
@@ -71,20 +79,27 @@ const BSConfirmAlert = forwardRef<BottomSheetModal, BSConfirmAlertProps>(
         backgroundStyle={styles.bottomSheetBackground}
         handleIndicatorStyle={styles.handleIndicator}
         enablePanDownToClose={false}
-		    handleComponent={null}
+        handleComponent={null}
         onChange={onChange}
         enableContentPanningGesture={false}
       >
         <BottomSheetView style={styles.contentContainer}>
           <View style={styles.iconContainer}>
-            <AntDesign name="warning" size={48} color={Colors.red} />
+            <Image
+              source={require("@/assets/images/mammo_sos.png")}
+              style={{ width: 150, height: 150 }}
+              resizeMode="contain"
+            />
           </View>
           <Text style={styles.modalTitle}>{title}</Text>
           <Text style={styles.modalText}>{message}</Text>
 
           <View style={styles.confirmButtonWrapper}>
             <TouchableOpacity
-              style={[styles.confirmButton, { backgroundColor: Colors.darkRed }]}
+              style={[
+                styles.confirmButton,
+                { backgroundColor: Colors.darkRed },
+              ]}
               onPress={onConfirm}
               activeOpacity={0.8}
               disabled={autoPressed}
@@ -102,7 +117,11 @@ const BSConfirmAlert = forwardRef<BottomSheetModal, BSConfirmAlertProps>(
             </TouchableOpacity>
           </View>
 
-          <TouchableOpacity style={styles.closeButton} onPress={onCancel} activeOpacity={0.8}>
+          <TouchableOpacity
+            style={styles.closeButton}
+            onPress={onCancel}
+            activeOpacity={0.8}
+          >
             <Text style={styles.closeButtonText}>{cancelLabel}</Text>
           </TouchableOpacity>
         </BottomSheetView>
@@ -115,7 +134,7 @@ export default BSConfirmAlert;
 
 const styles = StyleSheet.create({
   bottomSheetBackground: {
-    backgroundColor: Colors.primary,
+    backgroundColor: Colors.white,
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
     shadowColor: Colors.black,
@@ -125,7 +144,7 @@ const styles = StyleSheet.create({
     elevation: 12,
   },
   handleIndicator: {
-    backgroundColor: Colors.grayDark,
+    backgroundColor: Colors.white,
     width: 60,
     height: 6,
     borderRadius: 3,
@@ -142,26 +161,22 @@ const styles = StyleSheet.create({
   },
   iconContainer: {
     marginBottom: 12,
-    backgroundColor: Colors.whiteAlt,
+    backgroundColor: Colors.white,
     borderRadius: 32,
     padding: 8,
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: Colors.red,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 6,
     elevation: 6,
   },
   modalTitle: {
-    color: Colors.white,
+    color: Colors.grayDark,
     fontSize: 22,
     fontWeight: "bold",
     marginBottom: 10,
     textAlign: "center",
   },
   modalText: {
-    color: Colors.textSecondary,
+    color: Colors.gray,
     fontSize: 17,
     marginBottom: 32,
     textAlign: "center",
@@ -223,4 +238,4 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     letterSpacing: 0.5,
   },
-}); 
+});

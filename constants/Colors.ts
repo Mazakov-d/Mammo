@@ -21,7 +21,7 @@ export const Colors = {
     sheetAltBackground: '#191919',
     gray: '#666',
     grayDark: '#444',
-    white: '#fff',
+    white: '#f8f9fa',
     whiteAlt: '#fff2f2',
     black: '#000',
     textSecondary: '#e0e0e0',

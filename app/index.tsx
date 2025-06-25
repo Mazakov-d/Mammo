@@ -1,3 +1,5 @@
+// app/index.tsx - Updated with friends system
+
 import { Button } from "@react-navigation/elements";
 import React, {
   useRef,
@@ -12,8 +14,9 @@ import {
   StyleSheet,
   TouchableOpacity,
   Pressable,
+  Alert,
 } from "react-native";
-import MapView from "react-native-maps";
+import MapView, { Marker } from "react-native-maps";
 import { Stack, useRouter } from "expo-router";
 import BSConfirmAlert from "../components/BSConfirmAlert";
 import BSConfirmStop from "../components/BSConfirmStop";
@@ -25,6 +28,7 @@ import { useAuth } from "@/provider/AuthProvider";
 import { Redirect } from "expo-router";
 import { supabase } from "@/lib/supabase";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { locationTracker, UserLocation } from "@/lib/locationTracker";
 
 export default function Index() {
   const router = useRouter();
@@ -34,30 +38,129 @@ export default function Index() {
   }
   const insets = useSafeAreaInsets();
 
-  const [location, setLocation] = useState<Location.LocationObject | null>(
-    null
-  );
+  const [location, setLocation] = useState<Location.LocationObject | null>(null);
+  const [userLocations, setUserLocations] = useState<UserLocation[]>([]);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [onAlert, setOnAlert] = useState(false);
+  const [BSConfirmAlertMounted, setBSConfirmAlertMounted] = useState(false);
+  const [showStopSheet, setShowStopSheet] = useState(false);
+  const [isRealtimeConnected, setIsRealtimeConnected] = useState(false);
+  
+  const bottomSheetModalRef = useRef<BottomSheetModal>(null);
+  const stopSheetRef = useRef<BottomSheetModal>(null);
+  const mapRef = useRef<MapView>(null);
+  const locationSubscription = useRef<any>(null);
+  const isInitialized = useRef(false);
 
-  useMemo(() => {
-    (async () => {
+  // Initialize location tracking when component mounts
+  useEffect(() => {
+    if (isInitialized.current) return;
+    isInitialized.current = true;
+
+    initializeLocationTracking();
+    setupEnhancedRealtimeSubscription();
+
+    return () => {
+      cleanup();
+      isInitialized.current = false;
+    };
+  }, []);
+
+  const initializeLocationTracking = async () => {
+    try {
+      console.log('🚀 Initializing location tracking...');
+      
       let { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== "granted") {
         setErrorMsg("Permission to access location was denied");
         return;
       }
+      
       let loc = await Location.getCurrentPositionAsync({});
       console.log("Location:", loc);
       setLocation(loc);
-    })();
-  }, []);
+      
+      await locationTracker.startTracking(false);
+      await loadUserLocations();
+      
+      console.log('✅ Location tracking initialized');
+    } catch (error) {
+      console.error('❌ Failed to initialize location tracking:', error);
+      Alert.alert('Erreur', 'Impossible d\'accéder à la localisation');
+    }
+  };
 
-  const [onAlert, setOnAlert] = useState(false);
-  const [BSConfirmAlertMounted, setBSConfirmAlertMounted] = useState(false);
-  const [showStopSheet, setShowStopSheet] = useState(false);
-  const bottomSheetModalRef = useRef<BottomSheetModal>(null);
-  const stopSheetRef = useRef<BottomSheetModal>(null);
-  const mapRef = useRef<MapView>(null);
+  const setupEnhancedRealtimeSubscription = () => {
+    console.log('🔄 Setting up enhanced real-time subscription');
+    
+    // Enhanced subscription with better error handling and reconnection
+    locationSubscription.current = locationTracker.subscribeToVisibleLocationChanges(
+      (locations) => {
+        console.log(`📊 Real-time update: ${locations.length} visible user locations`);
+        setUserLocations(locations);
+        setIsRealtimeConnected(true);
+        
+        // Update current user's location and alert status
+        const currentUser = locations.find(loc => loc.user_id === session?.user?.id);
+        if (currentUser) {
+          setLocation({
+            coords: {
+              latitude: currentUser.latitude,
+              longitude: currentUser.longitude,
+              altitude: 0,
+              accuracy: 0,
+              heading: 0,
+              speed: 0,
+              altitudeAccuracy: 0,
+            },
+            timestamp: Date.now(),
+          });
+          
+          // Auto-sync alert status
+          if (currentUser.is_alert !== onAlert) {
+            console.log(`🔄 Auto-syncing alert status: ${currentUser.is_alert}`);
+            setOnAlert(currentUser.is_alert);
+          }
+        }
+      }
+    );
+
+    // Monitor connection status
+    const checkConnection = setInterval(() => {
+      const status = locationTracker.getStatus();
+      setIsRealtimeConnected(status.hasRealtimeSubscription);
+      
+      if (!status.hasRealtimeSubscription) {
+        console.log('⚠️ Real-time connection lost, attempting to reconnect...');
+        setupEnhancedRealtimeSubscription();
+      }
+    }, 30000); // Check every 30 seconds
+
+    return () => clearInterval(checkConnection);
+  };
+
+  const loadUserLocations = async () => {
+    try {
+      const locations = await locationTracker.getVisibleUserLocations();
+      setUserLocations(locations);
+      console.log(`📊 Loaded ${locations.length} visible user locations`);
+    } catch (error) {
+      console.error('❌ Failed to load user locations:', error);
+    }
+  };
+
+  const cleanup = async () => {
+    console.log('🧹 Cleaning up location tracking...');
+    
+    await locationTracker.stopTracking();
+    
+    if (locationSubscription.current) {
+      locationSubscription.current.unsubscribe();
+      locationSubscription.current = null;
+    }
+    
+    locationTracker.unsubscribeFromRealtimeChanges();
+  };
 
   const handlePresentModalPress = useCallback(() => {
     setBSConfirmAlertMounted(true);
@@ -71,10 +174,38 @@ export default function Index() {
     bottomSheetModalRef.current?.dismiss();
   }, []);
 
-  const handleConfirmModalPress = useCallback(() => {
-    setOnAlert(true);
-    setBSConfirmAlertMounted(false);
-    bottomSheetModalRef.current?.dismiss();
+  const handleConfirmModalPress = useCallback(async () => {
+    try {
+      console.log('🚨 ACTIVATING ALERT MODE');
+      console.log('📍 Now tracking every 5 meters of movement');
+      
+      await locationTracker.activateAlert();
+      
+      setOnAlert(true);
+      setBSConfirmAlertMounted(false);
+      bottomSheetModalRef.current?.dismiss();
+      
+    } catch (error) {
+      console.error('❌ Error activating alert mode:', error);
+      Alert.alert("Erreur", "Impossible d'activer le mode alerte");
+    }
+  }, []);
+
+  const handleStopAlert = useCallback(async () => {
+    try {
+      console.log('✅ DEACTIVATING ALERT MODE');
+      console.log('📅 Returning to background mode');
+      
+      await locationTracker.deactivateAlert();
+      
+      setOnAlert(false);
+      setShowStopSheet(false);
+      stopSheetRef.current?.dismiss();
+      
+    } catch (error) {
+      console.error('❌ Error deactivating alert mode:', error);
+      Alert.alert("Erreur", "Impossible de désactiver l'alerte");
+    }
   }, []);
 
   const handleSheetChanges = useCallback((index: number) => {
@@ -94,9 +225,43 @@ export default function Index() {
     }
   }, [location]);
 
-  const handleSignOut = () => {
+  const renderUserMarkers = () => {
+    return userLocations.map((userLocation) => {
+      if (userLocation.user_id === session?.user?.id) return null;
+
+      const isAlert = userLocation.is_alert;
+      const userName = userLocation.profiles?.full_name || 'Utilisateur';
+
+      const lastSeen = new Date(userLocation.updated_at);
+      const minutesAgo = Math.floor((Date.now() - lastSeen.getTime()) / 60000);
+      
+      let timeDisplay;
+      if (minutesAgo < 1) timeDisplay = 'à l\'instant';
+      else if (minutesAgo < 60) timeDisplay = `il y a ${minutesAgo}min`;
+      else timeDisplay = `il y a ${Math.floor(minutesAgo / 60)}h`;
+
+      return (
+        <Marker
+          key={userLocation.user_id}
+          coordinate={{
+            latitude: userLocation.latitude,
+            longitude: userLocation.longitude,
+          }}
+          title={isAlert ? `🚨 ${userName}` : userName}
+          description={isAlert ? `EN ALERTE! (${timeDisplay})` : `En ligne (${timeDisplay})`}
+          pinColor={isAlert ? "#FF0000" : "#FFA500"}
+        />
+      );
+    });
+  };
+
+  const handleSignOut = async () => {
+    await cleanup();
     supabase.auth.signOut();
   };
+
+  const alertUsers = userLocations.filter(u => u.is_alert);
+  const onlineUsers = userLocations.length;
 
   return (
     <View style={styles.container}>
@@ -112,12 +277,11 @@ export default function Index() {
                   flexDirection: "row",
                   alignItems: "center",
                   justifyContent: "space-between",
-                  paddingHorizontal: Layout.padding,
+                  paddingHorizontal: 10,
                 }}
               >
                 {onAlert === false ? (
                   <>
-                    {/* header left: bell */}
                     <Pressable
                       onPress={() => router.navigate("/alerts")}
                       style={({ pressed }) => [
@@ -140,16 +304,22 @@ export default function Index() {
                         size={24}
                         color="white"
                       />
+                      {alertUsers.length > 0 && (
+                        <View style={styles.alertBadge}>
+                          <Text style={styles.alertBadgeText}>{alertUsers.length}</Text>
+                        </View>
+                      )}
                     </Pressable>
-                    {/* header right: user/settings */}
+                    
                     <View
                       style={{
                         flexDirection: "row",
                         alignItems: "center",
-                        gap: 10,
+                        gap: 1,
                       }}
                     >
                       <Pressable
+                        onPress={() => router.navigate("/users")}
                         style={({ pressed }) => [
                           {
                             width: Layout.buttonWidth,
@@ -163,7 +333,19 @@ export default function Index() {
                         ]}
                       >
                         <Feather name="users" size={28} color="white" />
+                        <View style={styles.userCountBadge}>
+                          <Text style={styles.userCountText}>{onlineUsers}</Text>
+                        </View>
                       </Pressable>
+                      
+                      {/* Real-time connection status indicator */}
+                      <View style={[
+                        styles.connectionStatus,
+                        { backgroundColor: isRealtimeConnected ? '#4CAF50' : '#FF5722' }
+                      ]}>
+                        <View style={styles.connectionDot} />
+                      </View>
+                      
                       <Pressable
                         style={({ pressed }) => [
                           {
@@ -183,13 +365,12 @@ export default function Index() {
                     </View>
                   </>
                 ) : (
-                  // onAlert === true: show STOP button
                   <Pressable
                     style={({ pressed }) => [
                       {
                         width: Layout.buttonWidth * 1.5,
                         height: Layout.buttonHeight * 1.5,
-                        backgroundColor: Colors.orange,
+                        backgroundColor: Colors.red,
                         justifyContent: "center",
                         alignItems: "center",
                         borderRadius: 50,
@@ -197,6 +378,11 @@ export default function Index() {
                         position: "absolute",
                         top: insets.top + 10,
                         right: 10,
+                        shadowColor: Colors.red,
+                        shadowOffset: { width: 0, height: 4 },
+                        shadowOpacity: 0.3,
+                        shadowRadius: 8,
+                        elevation: 8,
                       },
                     ]}
                     onPress={() => {
@@ -209,7 +395,7 @@ export default function Index() {
                     <Text
                       style={{
                         color: Colors.white,
-                        fontSize: Layout.fontSizeSmall,
+                        fontSize: 14,
                         fontWeight: Layout.fontWeightBold,
                       }}
                     >
@@ -222,6 +408,7 @@ export default function Index() {
           },
         }}
       />
+      
       <MapView
         ref={mapRef}
         style={styles.map}
@@ -237,16 +424,9 @@ export default function Index() {
           latitudeDelta: 0.0922,
           longitudeDelta: 0.0421,
         }}
-        onRegionChangeComplete={(region) => {
-          console.log("Region changed:", region);
-        }}
-        onUserLocationChange={(e) => {
-          console.log("User location changed:", e.nativeEvent.coordinate);
-        }}
-        onMapReady={() => {
-          console.log("Map is ready");
-        }}
-      />
+      >
+        {renderUserMarkers()}
+      </MapView>
 
       {onAlert === false && (
         <TouchableOpacity
@@ -256,13 +436,14 @@ export default function Index() {
           <Text style={styles.buttonText}>SOS</Text>
         </TouchableOpacity>
       )}
+
       {BSConfirmAlertMounted && (
         <BSConfirmAlert
           ref={bottomSheetModalRef}
           onConfirm={handleConfirmModalPress}
           onCancel={handleCancelModalPress}
           title={"Confirmation d'alerte"}
-          message={"Nous allons alerter tous les utilisateurs autour de vous"}
+          message={"Nous allons alerter tous vos amis"}
           confirmLabel={"Confirmer"}
           cancelLabel={"Annuler"}
           confirmDelayMs={5000}
@@ -272,11 +453,7 @@ export default function Index() {
       {showStopSheet && (
         <BSConfirmStop
           ref={stopSheetRef}
-          onConfirm={() => {
-            setOnAlert(false);
-            setShowStopSheet(false);
-            stopSheetRef.current?.dismiss();
-          }}
+          onConfirm={handleStopAlert}
           onCancel={() => {
             setShowStopSheet(false);
             stopSheetRef.current?.dismiss();
@@ -294,15 +471,7 @@ export default function Index() {
   );
 }
 
-import type { ViewStyle, TextStyle } from "react-native";
-import { navigate } from "expo-router/build/global-state/routing";
-
-const styles = StyleSheet.create<{
-  container: ViewStyle;
-  map: ViewStyle;
-  ovalButton: ViewStyle;
-  buttonText: TextStyle;
-}>({
+const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
@@ -310,21 +479,12 @@ const styles = StyleSheet.create<{
     width: "100%",
     height: "100%",
   },
-  buttonContainer: {
-    position: "absolute",
-    bottom: 100,
-    left: 0,
-    right: 0,
-    alignItems: "center",
-    paddingHorizontal: Layout.padding,
-  },
   ovalButton: {
     backgroundColor: Colors.red,
     position: "absolute",
     bottom: 50,
     alignSelf: "center",
     width: "45%",
-    // paddingHorizontal: 60,
     paddingVertical: 18,
     borderRadius: Layout.radiusLarge,
     shadowColor: Colors.black,
@@ -338,5 +498,50 @@ const styles = StyleSheet.create<{
     fontSize: Layout.fontSizeBig,
     fontWeight: Layout.fontWeightBold,
     textAlign: "center",
+  },
+  userCountBadge: {
+    position: 'absolute',
+    top: -5,
+    right: -5,
+    backgroundColor: '#2E7D32',
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  userCountText: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  alertBadge: {
+    position: 'absolute',
+    top: -8,
+    right: -8,
+    backgroundColor: Colors.red,
+    borderRadius: 12,
+    minWidth: 24,
+    height: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  alertBadgeText: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  connectionStatus: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  connectionDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: 'white',
   },
 });
