@@ -44,6 +44,7 @@ export default function UsersScreen() {
   const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
+    setLoading(true);
     loadAllRelationships();
 
     // Subscribe to relationships changes
@@ -98,7 +99,6 @@ export default function UsersScreen() {
 
   const loadAllRelationships = async () => {
     try {
-      setLoading(true);
 
       if (!session?.user?.id) return;
 
@@ -665,12 +665,13 @@ export default function UsersScreen() {
       </TouchableOpacity>
     </View>
   );
+  
 
   return (
     <View style={styles.container}>
       <Stack.Screen
         options={{
-          headerTitle: "Mes contacts",
+          headerTitle: "Mes relations",
           headerTitleAlign: "center",
           headerTransparent: true,
           headerLeft: () => (
@@ -692,7 +693,13 @@ export default function UsersScreen() {
         }}
       />
 
-      {filteredSections.length === 0 ? (
+      {loading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={Colors.orange} />
+        </View>
+      ) :
+
+      filteredSections.length === 0 ? (
         renderEmpty()
       ) : (
         <SafeAreaView style={{ flex: 1 }}>
