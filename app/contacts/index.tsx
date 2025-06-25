@@ -699,7 +699,7 @@ export default function UsersScreen() {
         </View>
       ) :
 
-      filteredSections.length === 0 ? (
+      filteredSections.length === 0 && searchQuery === "" ? (
         renderEmpty()
       ) : (
         <SafeAreaView style={{ flex: 1 }}>
