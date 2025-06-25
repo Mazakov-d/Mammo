@@ -31,7 +31,8 @@ export default function SignUpScreen() {
   const [loading, setLoading] = useState(false);
 
   const handleSignUp = async () => {
-    if (!email || !password || !confirmPassword) {
+    // Validate all fields
+    if (!email || !firstName || !lastName || !password || !confirmPassword) {
       Alert.alert("Erreur", "Veuillez remplir tous les champs");
       return;
     }
@@ -50,19 +51,73 @@ export default function SignUpScreen() {
     }
 
     setLoading(true);
-    const { error, data } = await supabase.auth.signUp({
-      email,
-      password,
-    });
-
-    if (data && !error && data.user) {
-      router.push({
-        pathname: "/(auth)/complete-profile",
-        params: { id: data.user.id, email: data.user.email },
+    
+    try {
+      // 1. Sign up the user
+      const { error: signUpError, data } = await supabase.auth.signUp({
+        email,
+        password,
       });
+
+      if (signUpError) throw signUpError;
+
+      if (data?.user) {
+        // 2. Wait a moment for the trigger to create the profile
+        await new Promise(resolve => setTimeout(resolve, 1000));
+
+        // 3. Update the user's profile with first and last name
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .update({
+            first_name: firstName.trim(),
+            last_name: lastName.trim(),
+          })
+          .eq('id', data.user.id);
+
+        if (profileError) {
+          console.error('Profile update error:', profileError);
+          // Try to insert if update failed (in case trigger didn't create the profile)
+          const { error: insertError } = await supabase
+            .from('profiles')
+            .insert({
+              id: data.user.id,
+              first_name: firstName.trim(),
+              last_name: lastName.trim(),
+            });
+          
+          if (insertError) {
+            console.error('Profile insert error:', insertError);
+          }
+        }
+
+        // 4. Sign in the user automatically
+        const { error: signInError } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+
+        if (signInError) {
+          console.error('Auto sign-in error:', signInError);
+          Alert.alert(
+            "Inscription réussie", 
+            "Votre compte a été créé. Veuillez vous connecter.",
+            [
+              {
+                text: "OK",
+                onPress: () => router.replace("/sign-in")
+              }
+            ]
+          );
+        } else {
+          // Successfully signed in, redirect to main app
+          router.replace("/");
+        }
+      }
+    } catch (error: any) {
+      Alert.alert("Erreur", error.message || "Une erreur est survenue lors de l'inscription");
+    } finally {
+      setLoading(false);
     }
-    if (error) Alert.alert("Erreur", error.message);
-    setLoading(false);
   };
 
   return (
@@ -96,6 +151,50 @@ export default function SignUpScreen() {
 
         {/* Form Section */}
         <View style={styles.formSection}>
+          {/* First Name Input */}
+          <View style={styles.inputContainer}>
+            <Text style={styles.inputLabel}>Prénom</Text>
+            <View style={styles.inputWrapper}>
+              <Feather
+                name="user"
+                size={20}
+                color={"#6c757d"}
+                style={styles.inputIcon}
+              />
+              <TextInput
+                style={styles.textInput}
+                placeholder="Votre prénom"
+                placeholderTextColor="#6c757d"
+                value={firstName}
+                onChangeText={setFirstName}
+                autoCapitalize="words"
+                autoCorrect={false}
+              />
+            </View>
+          </View>
+
+          {/* Last Name Input */}
+          <View style={styles.inputContainer}>
+            <Text style={styles.inputLabel}>Nom</Text>
+            <View style={styles.inputWrapper}>
+              <Feather
+                name="user"
+                size={20}
+                color={"#6c757d"}
+                style={styles.inputIcon}
+              />
+              <TextInput
+                style={styles.textInput}
+                placeholder="Votre nom"
+                placeholderTextColor="#6c757d"
+                value={lastName}
+                onChangeText={setLastName}
+                autoCapitalize="words"
+                autoCorrect={false}
+              />
+            </View>
+          </View>
+
           {/* Email Input */}
           <View style={styles.inputContainer}>
             <Text style={styles.inputLabel}>Adresse e-mail</Text>
@@ -240,8 +339,8 @@ const styles = StyleSheet.create({
   },
   headerSection: {
     alignItems: "center",
-    paddingTop: 40,
-    paddingBottom: 40,
+    paddingTop: 20,
+    paddingBottom: 30,
   },
   logoCircle: {
     width: 80,
