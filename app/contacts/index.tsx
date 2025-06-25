@@ -343,7 +343,7 @@ export default function UsersScreen() {
       </Text>
       <TouchableOpacity
         style={styles.addFriendButton}
-        onPress={() => router.push("/add-friends")}
+        onPress={() => router.push("/contacts/add-contacts")}
       >
         <AntDesign name="adduser" size={20} color="white" />
         <Text style={styles.addFriendButtonText}>Ajouter des amis</Text>
@@ -368,7 +368,7 @@ export default function UsersScreen() {
           ),
           headerRight: () => (
             <TouchableOpacity
-              onPress={() => router.push("/add-friends")}
+              onPress={() => router.push("/contacts/add-contacts")}
               style={{ marginRight: 10 }}
             >
               <AntDesign name="adduser" size={24} color={Colors.orange} />

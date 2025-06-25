@@ -61,7 +61,7 @@ export default function AddFriendsScreen() {
       const { data: friends } = await supabase
         .from('contacts')
         .select('*')
-        .or(`user_id.eq.${session.user.id},contact_id.eq.${session.user.id}`)
+        .eq('user_id', `${session.user.id}`)
         .eq('status', 'accepted');
 
       const friendIds = friends?.map(contact => 
@@ -73,7 +73,7 @@ export default function AddFriendsScreen() {
       const { data: pending } = await supabase
         .from('contacts')
         .select('*')
-        .or(`user_id.eq.${session.user.id},contact_id.eq.${session.user.id}`)
+        .eq(`user_id`,`${session.user.id}`)
         .eq('status', 'pending');
 
       const sent = pending?.filter(r => r.user_id === session.user.id).map(r => r.contact_id) || [];
@@ -123,12 +123,12 @@ export default function AddFriendsScreen() {
       const { data: existing } = await supabase
         .from('contacts')
         .select('*')
-        .or(`user_id.eq.${session.user.id},contact_id.eq.${session.user.id}`)
-        .or(`user_id.eq.${friendId},contact_id.eq.${friendId}`)
+        .eq(`user_id`,`${session.user.id}`)
+        .eq(`contact_id`,`${friendId}`)
         .single();
 
       if (existing) {
-        Alert.alert('Info', 'Une demande existe déjà avec cet utilisateur');
+        Alert.alert('Info', 'Vous avez déjà une relation avec cet utilisateur.');
         return;
       }
 

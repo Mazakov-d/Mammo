@@ -43,13 +43,13 @@ export default function SettingScreen() {
       <View style={styles.buttonGroup}>
         <Pressable
           style={styles.orangeButton}
-          onPress={() => router.push("./profil")}
+          onPress={() => router.push("/settings/profile")}
         >
           <Text style={styles.orangeButtonText}>Profil</Text>
         </Pressable>
         <Pressable
           style={styles.orangeButton}
-          onPress={() => router.push("./politique")}
+          onPress={() => router.push("/settings/policy")}
         >
           <Text style={styles.orangeButtonText}>Politique de confidentialité</Text>
         </Pressable>
