@@ -1,5 +1,5 @@
 import React, { forwardRef } from "react";
-import { Text, StyleSheet, TouchableOpacity, View , Image} from "react-native";
+import { Text, StyleSheet, TouchableOpacity, View, Image } from "react-native";
 import { BottomSheetModal, BottomSheetView } from "@gorhom/bottom-sheet";
 import { AntDesign } from "@expo/vector-icons";
 import { Colors } from "../constants/Colors";
@@ -40,11 +40,12 @@ const BSConfirmStop = forwardRef<BottomSheetModal, BSConfirmStopProps>(
       >
         <BottomSheetView style={styles.contentContainer}>
           <View style={styles.iconContainer}>
-			<Image
-			  source={require("@/assets/images/mammo_ouf.png")}
-			  style={{ width: 150, height: 150 }}
-			  resizeMode="contain"
-			/>          </View>
+            <Image
+              source={require("@/assets/images/mammo_ouf.png")}
+              style={{ width: 150, height: 150 }}
+              resizeMode="contain"
+            />
+          </View>
           <Text style={styles.modalTitle}>{title}</Text>
           <Text style={styles.modalText}>{message}</Text>
 
@@ -58,7 +59,11 @@ const BSConfirmStop = forwardRef<BottomSheetModal, BSConfirmStopProps>(
             </TouchableOpacity>
           </View>
 
-          <TouchableOpacity style={styles.closeButton} onPress={onCancel} activeOpacity={0.8}>
+          <TouchableOpacity
+            style={styles.closeButton}
+            onPress={onCancel}
+            activeOpacity={0.8}
+          >
             <Text style={styles.closeButtonText}>{cancelLabel}</Text>
           </TouchableOpacity>
         </BottomSheetView>
@@ -160,7 +165,6 @@ const styles = StyleSheet.create({
     elevation: 4,
     marginTop: 0,
     marginBottom: 16,
-
   },
   closeButtonText: {
     color: Colors.white,
