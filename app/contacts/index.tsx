@@ -684,7 +684,7 @@ export default function UsersScreen() {
     <View style={styles.container}>
       <Stack.Screen
         options={{
-          headerTitle: "Mes relations",
+          headerTitle: "Mes contacts",
           headerTitleAlign: "center",
           headerTransparent: true,
           headerLeft: () => (

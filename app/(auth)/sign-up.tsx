@@ -30,7 +30,7 @@ export default function SignUpScreen() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const handleSignUp = async () => {
+const handleSignUp = async () => {
     // Validate all fields
     if (!email || !firstName || !lastName || !password || !confirmPassword) {
       Alert.alert("Erreur", "Veuillez remplir tous les champs");
@@ -53,10 +53,18 @@ export default function SignUpScreen() {
     setLoading(true);
     
     try {
-      // 1. Sign up the user
+      // 1. Sign up the user with metadata
+      const fullName = `${firstName.trim()} ${lastName.trim()}`;
       const { error: signUpError, data } = await supabase.auth.signUp({
         email,
         password,
+        options: {
+          data: {
+            full_name: fullName,
+            first_name: firstName.trim(),
+            last_name: lastName.trim(),
+          }
+        }
       });
 
       if (signUpError) throw signUpError;
@@ -65,10 +73,11 @@ export default function SignUpScreen() {
         // 2. Wait a moment for the trigger to create the profile
         await new Promise(resolve => setTimeout(resolve, 1000));
 
-        // 3. Update the user's profile with first and last name
+        // 3. Update the user's profile with all information
         const { error: profileError } = await supabase
           .from('profiles')
           .update({
+            full_name: fullName,
             first_name: firstName.trim(),
             last_name: lastName.trim(),
           })
@@ -81,6 +90,7 @@ export default function SignUpScreen() {
             .from('profiles')
             .insert({
               id: data.user.id,
+              full_name: fullName,
               first_name: firstName.trim(),
               last_name: lastName.trim(),
             });
