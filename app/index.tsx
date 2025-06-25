@@ -52,6 +52,7 @@ export default function Index() {
   const locationSubscription = useRef<any>(null);
   const isInitialized = useRef(false);
 
+  
   // Initialize location tracking when component mounts
   useEffect(() => {
     if (isInitialized.current) return;

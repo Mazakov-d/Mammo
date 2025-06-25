@@ -25,7 +25,7 @@ export interface UserLocation {
 class LocationTracker {
   private lastKnownLocation: LocationState | null = null;
   private locationSubscription: Location.LocationSubscription | null = null;
-  private backgroundInterval: NodeJS.Timeout | null = null;
+  private backgroundInterval: ReturnType<typeof setInterval> | null = null;
   private isAlertMode: boolean = false;
   private isActive: boolean = false;
   private realtimeSubscription: any = null;
@@ -159,7 +159,7 @@ class LocationTracker {
       
       const location = await Location.getCurrentPositionAsync({
         accuracy: config.accuracy,
-        maximumAge: config.maxAge,
+        // maximumAge: config.maxAge,
       });
 
       await this.handleLocationUpdate(location, source);
