@@ -20,9 +20,7 @@ interface Profile {
   id: string;
   full_name: string;
   avatar_url?: string;
-  isFriend?: boolean;
-  isPending?: boolean;
-  isRequested?: boolean;
+  relationshipStatus?: 'none' | 'friend' | 'sent' | 'received';
 }
 
 export default function AddFriendsScreen() {
@@ -31,15 +29,6 @@ export default function AddFriendsScreen() {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(false);
-  const [existingFriends, setExistingFriends] = useState<string[]>([]);
-  const [pendingRequests, setPendingRequests] = useState<{sent: string[], received: string[]}>({
-    sent: [],
-    received: []
-  });
-
-  useEffect(() => {
-    loadExistingRelationships();
-  }, []);
 
   useEffect(() => {
     const delaySearch = setTimeout(() => {
@@ -53,58 +42,72 @@ export default function AddFriendsScreen() {
     return () => clearTimeout(delaySearch);
   }, [searchQuery]);
 
-  const loadExistingRelationships = async () => {
-    if (!session?.user?.id) return;
-
-    try {
-      // Get existing friends
-      const { data: friends } = await supabase
-        .from('contacts')
-        .select('*')
-        .eq('user_id', `${session.user.id}`)
-        .eq('status', 'accepted');
-
-      const friendIds = friends?.map(contact => 
-        contact.user_id === session.user.id ? contact.contact_id : contact.user_id
-      ) || [];
-      setExistingFriends(friendIds);
-
-      // Get pending requests
-      const { data: pending } = await supabase
-        .from('contacts')
-        .select('*')
-        .eq(`user_id`,`${session.user.id}`)
-        .eq('status', 'pending');
-
-      const sent = pending?.filter(r => r.user_id === session.user.id).map(r => r.contact_id) || [];
-      const received = pending?.filter(r => r.contact_id === session.user.id).map(r => r.user_id) || [];
-      
-      setPendingRequests({ sent, received });
-    } catch (error) {
-      console.error('Error loading relationships:', error);
-    }
-  };
-
   const searchProfiles = async () => {
     if (!session?.user?.id) return;
     
     setLoading(true);
     try {
-      const { data, error } = await supabase
+      // Search for profiles
+      const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
         .select('*')
         .ilike('full_name', `%${searchQuery}%`)
         .neq('id', session.user.id)
         .limit(20);
 
-      if (error) throw error;
+      if (profilesError) throw profilesError;
 
-      const results = data?.map(profile => ({
-        ...profile,
-        isFriend: existingFriends.includes(profile.id),
-        isPending: pendingRequests.sent.includes(profile.id),
-        isRequested: pendingRequests.received.includes(profile.id)
-      })) || [];
+      if (!profiles || profiles.length === 0) {
+        setSearchResults([]);
+        return;
+      }
+
+      const profileIds = profiles.map(p => p.id);
+
+      // Get all existing relationships for current user
+      const { data: relationships, error: relationshipsError } = await supabase
+        .from('contacts')
+        .select('*')
+        .eq('user_id', session.user.id)
+        .in('contact_id', profileIds);
+
+      if (relationshipsError) throw relationshipsError;
+
+      // Get relationships where current user is the contact (received invitations)
+      const { data: receivedRelationships, error: receivedError } = await supabase
+        .from('contacts')
+        .select('*')
+        .eq('contact_id', session.user.id)
+        .in('user_id', profileIds);
+
+      if (receivedError) throw receivedError;
+
+      // Map relationship status
+      const results = profiles.map(profile => {
+        // Check if user sent invitation to this profile
+        const sentRelationship = relationships?.find(r => r.contact_id === profile.id);
+        // Check if this profile sent invitation to user
+        const receivedRelationship = receivedRelationships?.find(r => r.user_id === profile.id);
+
+        let relationshipStatus: 'none' | 'friend' | 'sent' | 'received' = 'none';
+
+        if (sentRelationship) {
+          if (sentRelationship.status === 'accepted') {
+            relationshipStatus = 'friend';
+          } else if (sentRelationship.status === 'pending') {
+            relationshipStatus = 'sent';
+          }
+        } else if (receivedRelationship) {
+          if (receivedRelationship.status === 'pending') {
+            relationshipStatus = 'received';
+          }
+        }
+
+        return {
+          ...profile,
+          relationshipStatus
+        };
+      });
 
       setSearchResults(results);
     } catch (error) {
@@ -119,20 +122,6 @@ export default function AddFriendsScreen() {
     if (!session?.user?.id) return;
 
     try {
-      // Check if relationship already exists
-      const { data: existing } = await supabase
-        .from('contacts')
-        .select('*')
-        .eq(`user_id`,`${session.user.id}`)
-        .eq(`contact_id`,`${friendId}`)
-        .single();
-
-      if (existing) {
-        Alert.alert('Info', 'Vous avez déjà une relation avec cet utilisateur.');
-        return;
-      }
-
-      // Create friend request
       const { error } = await supabase
         .from('contacts')
         .insert({
@@ -144,12 +133,6 @@ export default function AddFriendsScreen() {
       if (error) throw error;
 
       Alert.alert('Succès', 'Demande d\'ami envoyée !');
-      
-      // Update local state
-      setPendingRequests(prev => ({
-        ...prev,
-        sent: [...prev.sent, friendId]
-      }));
       
       // Refresh search results
       searchProfiles();
@@ -163,7 +146,7 @@ export default function AddFriendsScreen() {
     if (!session?.user?.id) return;
 
     try {
-      // Update the request to accepted
+      // Update the request to accepted (trigger will create bidirectional relationship)
       const { error } = await supabase
         .from('contacts')
         .update({ status: 'accepted' })
@@ -174,13 +157,6 @@ export default function AddFriendsScreen() {
 
       Alert.alert('Succès', 'Demande d\'ami acceptée !');
       
-      // Update local state
-      setExistingFriends(prev => [...prev, friendId]);
-      setPendingRequests(prev => ({
-        ...prev,
-        received: prev.received.filter(id => id !== friendId)
-      }));
-      
       // Refresh search results
       searchProfiles();
     } catch (error) {
@@ -189,47 +165,78 @@ export default function AddFriendsScreen() {
     }
   };
 
+  const declineFriendRequest = async (friendId: string) => {
+    if (!session?.user?.id) return;
+
+    try {
+      // Delete the friend request
+      const { error } = await supabase
+        .from('contacts')
+        .delete()
+        .eq('user_id', friendId)
+        .eq('contact_id', session.user.id)
+        .eq('status', 'pending');
+
+      if (error) throw error;
+
+      Alert.alert('Succès', 'Demande d\'ami refusée');
+      
+      // Refresh search results
+      searchProfiles();
+    } catch (error) {
+      console.error('Error declining friend request:', error);
+      Alert.alert('Erreur', 'Impossible de refuser la demande');
+    }
+  };
+
   const renderProfile = ({ item }: { item: Profile }) => {
     const renderButton = () => {
-      if (item.isFriend) {
-        return (
-          <View style={styles.statusBadge}>
-            <MaterialIcons name="check-circle" size={20} color="#4CAF50" />
-            <Text style={styles.statusText}>Ami</Text>
-          </View>
-        );
-      }
+      switch (item.relationshipStatus) {
+        case 'friend':
+          return (
+            <View style={styles.statusBadge}>
+              <MaterialIcons name="check-circle" size={20} color="#4CAF50" />
+              <Text style={styles.statusText}>Ami</Text>
+            </View>
+          );
 
-      if (item.isPending) {
-        return (
-          <View style={[styles.statusBadge, { backgroundColor: '#FFF3E0' }]}>
-            <MaterialIcons name="schedule" size={20} color="#FF9800" />
-            <Text style={[styles.statusText, { color: '#FF9800' }]}>En attente</Text>
-          </View>
-        );
-      }
+        case 'sent':
+          return (
+            <View style={[styles.statusBadge, { backgroundColor: '#FFF3E0' }]}>
+              <MaterialIcons name="schedule" size={20} color="#FF9800" />
+              <Text style={[styles.statusText, { color: '#FF9800' }]}>En attente</Text>
+            </View>
+          );
 
-      if (item.isRequested) {
-        return (
-          <TouchableOpacity
-            style={[styles.actionButton, { backgroundColor: '#4CAF50' }]}
-            onPress={() => acceptFriendRequest(item.id)}
-          >
-            <MaterialIcons name="check" size={20} color="white" />
-            <Text style={styles.actionButtonText}>Accepter</Text>
-          </TouchableOpacity>
-        );
-      }
+        case 'received':
+          return (
+            <View style={styles.buttonGroup}>
+              <TouchableOpacity
+                style={[styles.actionButton, { backgroundColor: '#4CAF50', marginRight: 8 }]}
+                onPress={() => acceptFriendRequest(item.id)}
+              >
+                <MaterialIcons name="check" size={16} color="white" />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.actionButton, { backgroundColor: '#f44336' }]}
+                onPress={() => declineFriendRequest(item.id)}
+              >
+                <MaterialIcons name="close" size={16} color="white" />
+              </TouchableOpacity>
+            </View>
+          );
 
-      return (
-        <TouchableOpacity
-          style={styles.actionButton}
-          onPress={() => sendFriendRequest(item.id)}
-        >
-          <AntDesign name="adduser" size={20} color="white" />
-          <Text style={styles.actionButtonText}>Ajouter</Text>
-        </TouchableOpacity>
-      );
+        default:
+          return (
+            <TouchableOpacity
+              style={styles.actionButton}
+              onPress={() => sendFriendRequest(item.id)}
+            >
+              <AntDesign name="adduser" size={20} color="white" />
+              <Text style={styles.actionButtonText}>Ajouter</Text>
+            </TouchableOpacity>
+          );
+      }
     };
 
     return (
@@ -248,7 +255,7 @@ export default function AddFriendsScreen() {
         
         <View style={styles.profileInfo}>
           <Text style={styles.profileName}>{item.full_name}</Text>
-          {item.isRequested && (
+          {item.relationshipStatus === 'received' && (
             <Text style={styles.requestText}>Vous a envoyé une demande</Text>
           )}
         </View>
@@ -419,6 +426,9 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#4CAF50',
     marginTop: 2,
+  },
+  buttonGroup: {
+    flexDirection: 'row',
   },
   actionButton: {
     flexDirection: 'row',

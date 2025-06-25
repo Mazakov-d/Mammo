@@ -1,4 +1,4 @@
-// lib/locationTracker.ts - Complete version with visibility rules
+// lib/locationTracker.ts - Updated with new friends structure
 
 import { supabase } from './supabase';
 import * as Location from 'expo-location';
@@ -25,7 +25,7 @@ export interface UserLocation {
 class LocationTracker {
   private lastKnownLocation: LocationState | null = null;
   private locationSubscription: Location.LocationSubscription | null = null;
-  private backgroundInterval: ReturnType<typeof setInterval> | null = null;
+  private backgroundInterval: NodeJS.Timeout | null = null;
   private isAlertMode: boolean = false;
   private isActive: boolean = false;
   private realtimeSubscription: any = null;
@@ -159,7 +159,7 @@ class LocationTracker {
       
       const location = await Location.getCurrentPositionAsync({
         accuracy: config.accuracy,
-        // maximumAge: config.maxAge,
+        maximumAge: config.maxAge,
       });
 
       await this.handleLocationUpdate(location, source);
@@ -268,9 +268,10 @@ class LocationTracker {
     await this.switchToBackgroundMode();
   }
 
-  // Get visible user locations based on visibility rules:
+  // Get visible user locations based on UPDATED visibility rules:
   // - If user is in alert mode (is_alert = true): visible to everyone
   // - If user is NOT in alert mode (is_alert = false): visible only to friends
+  // - Friends are now only searched where user_id = current_user_id
   async getVisibleUserLocations(): Promise<UserLocation[]> {
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -296,23 +297,20 @@ class LocationTracker {
         return [];
       }
 
-      // Then, get friends who are NOT in alert mode
+      // Get friends using NEW structure: only where user_id = current user
       const { data: contacts, error: contactsError } = await supabase
         .from('contacts')
-        .select('*')
-        .or(`user_id.eq.${user.id},contact_id.eq.${user.id}`);
+        .select('contact_id')
+        .eq('user_id', user.id)
+        .eq('status', 'accepted');
 
       if (contactsError) {
         console.error('❌ Failed to get contacts:', contactsError);
         return alertUsers || [];
       }
 
-      // Extract friend IDs
-      const friendIds = contacts?.map(contact => 
-        contact.user_id === user.id ? contact.contact_id : contact.user_id
-      ) || [];
-
-      // Add current user to see themselves
+      // Extract friend IDs and add current user to see themselves
+      const friendIds = contacts?.map(contact => contact.contact_id) || [];
       friendIds.push(user.id);
 
       // Get friends' locations who are NOT in alert mode
@@ -398,24 +396,23 @@ class LocationTracker {
     return this.realtimeSubscription;
   }
 
-  // Get friends' locations only (for friends list screen)
+  // Get friends' locations only (for friends list screen) - UPDATED
   async getFriendsLocations(): Promise<UserLocation[]> {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return [];
 
-      // Get all contacts where current user is either user_id or contact_id
+      // Get accepted contacts using NEW structure: only where user_id = current user
       const { data: contacts, error: contactsError } = await supabase
         .from('contacts')
-        .select('*')
-        .or(`user_id.eq.${user.id},contact_id.eq.${user.id}`);
+        .select('contact_id')
+        .eq('user_id', user.id)
+        .eq('status', 'accepted');
 
       if (contactsError) throw contactsError;
 
       // Extract friend IDs
-      const friendIds = contacts?.map(contact => 
-        contact.user_id === user.id ? contact.contact_id : contact.user_id
-      ) || [];
+      const friendIds = contacts?.map(contact => contact.contact_id) || [];
 
       if (friendIds.length === 0) return [];
 
