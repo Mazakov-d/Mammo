@@ -61,7 +61,7 @@ export default function AddFriendsScreen() {
       const { data: friends } = await supabase
         .from('contacts')
         .select('*')
-        .or(`user_id.eq.${session.user.id},contact_id.eq.${session.user.id}`)
+        .eq('user_id', `${session.user.id}`)
         .eq('status', 'accepted');
 
       const friendIds = friends?.map(contact => 
