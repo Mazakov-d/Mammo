@@ -30,105 +30,170 @@ export default function SignUpScreen() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
+// app/(auth)/sign-up.tsx - Fixed handleSignUp function
+
 const handleSignUp = async () => {
-    // Validate all fields
-    if (!email || !firstName || !lastName || !password || !confirmPassword) {
-      Alert.alert("Erreur", "Veuillez remplir tous les champs");
-      return;
-    }
+  // Validate all fields
+  if (!email || !firstName || !lastName || !password || !confirmPassword) {
+    Alert.alert("Erreur", "Veuillez remplir tous les champs");
+    return;
+  }
 
-    if (password !== confirmPassword) {
-      Alert.alert("Erreur", "Les mots de passe ne correspondent pas");
-      return;
-    }
+  if (password !== confirmPassword) {
+    Alert.alert("Erreur", "Les mots de passe ne correspondent pas");
+    return;
+  }
 
-    if (password.length < 6) {
-      Alert.alert(
-        "Erreur",
-        "Le mot de passe doit contenir au moins 6 caractères"
-      );
-      return;
-    }
+  if (password.length < 6) {
+    Alert.alert(
+      "Erreur",
+      "Le mot de passe doit contenir au moins 6 caractères"
+    );
+    return;
+  }
 
-    setLoading(true);
+  setLoading(true);
+  
+  try {
+    const fullName = `${firstName.trim()} ${lastName.trim()}`;
     
-    try {
-      // 1. Sign up the user with metadata
-      const fullName = `${firstName.trim()} ${lastName.trim()}`;
-      const { error: signUpError, data } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            full_name: fullName,
-            first_name: firstName.trim(),
-            last_name: lastName.trim(),
-          }
+    // 1. Sign up the user first
+    const { error: signUpError, data } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          full_name: fullName,
+          first_name: firstName.trim(),
+          last_name: lastName.trim(),
         }
-      });
+      }
+    });
 
-      if (signUpError) throw signUpError;
+    if (signUpError) throw signUpError;
 
-      if (data?.user) {
-        // 2. Wait a moment for the trigger to create the profile
-        await new Promise(resolve => setTimeout(resolve, 1000));
+    if (!data?.user) {
+      throw new Error("Échec de la création du compte utilisateur");
+    }
 
-        // 3. Update the user's profile with all information
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .update({
-            full_name: fullName,
-            first_name: firstName.trim(),
-            last_name: lastName.trim(),
-          })
-          .eq('id', data.user.id);
+    console.log("✅ User account created:", data.user.id);
 
-        if (profileError) {
-          console.error('Profile update error:', profileError);
-          // Try to insert if update failed (in case trigger didn't create the profile)
-          const { error: insertError } = await supabase
-            .from('profiles')
-            .insert({
-              id: data.user.id,
-              full_name: fullName,
-              first_name: firstName.trim(),
-              last_name: lastName.trim(),
-            });
-          
-          if (insertError) {
-            console.error('Profile insert error:', insertError);
-          }
-        }
+    // 2. Wait for auth trigger to potentially create profile
+    console.log("⏳ Waiting for database trigger...");
+    await new Promise(resolve => setTimeout(resolve, 2000));
 
-        // 4. Sign in the user automatically
+    // 3. Check if profile exists, create if not (idempotent operation)
+    const { data: existingProfile, error: checkError } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('id', data.user.id)
+      .single();
+
+    if (checkError && checkError.code !== 'PGRST116') { // PGRST116 = no rows returned
+      console.error("Error checking existing profile:", checkError);
+      throw new Error("Erreur lors de la vérification du profil");
+    }
+
+    if (!existingProfile) {
+      // Profile doesn't exist, create it
+      console.log("📝 Creating profile record...");
+      const { error: insertError } = await supabase
+        .from('profiles')
+        .insert({
+          id: data.user.id,
+          full_name: fullName,
+          first_name: firstName.trim(),
+          last_name: lastName.trim(),
+        });
+
+      if (insertError) {
+        console.error("Profile creation error:", insertError);
+        throw new Error("Erreur lors de la création du profil");
+      }
+      
+      console.log("✅ Profile created successfully");
+    } else {
+      // Profile exists, update it with latest info
+      console.log("🔄 Updating existing profile...");
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({
+          full_name: fullName,
+          first_name: firstName.trim(),
+          last_name: lastName.trim(),
+        })
+        .eq('id', data.user.id);
+
+      if (updateError) {
+        console.error("Profile update error:", updateError);
+        // Don't throw here - profile exists, update failure is not critical
+        console.log("⚠️ Profile update failed but continuing...");
+      } else {
+        console.log("✅ Profile updated successfully");
+      }
+    }
+
+    // 4. Sign in the user automatically with unlimited retry logic
+    console.log("🔐 Signing in user...");
+    let signInAttempts = 0;
+    
+    while (true) {
+      try {
+        signInAttempts++;
+        console.log(`🔐 Sign-in attempt ${signInAttempts}...`);
+        
         const { error: signInError } = await supabase.auth.signInWithPassword({
           email,
           password,
         });
 
-        if (signInError) {
-          console.error('Auto sign-in error:', signInError);
-          Alert.alert(
-            "Inscription réussie", 
-            "Votre compte a été créé. Veuillez vous connecter.",
-            [
-              {
-                text: "OK",
-                onPress: () => router.replace("/sign-in")
-              }
-            ]
-          );
-        } else {
+        if (!signInError) {
+          console.log("✅ Auto sign-in successful");
           // Successfully signed in, redirect to main app
           router.replace("/");
+          return;
         }
+
+        // If sign-in failed, log and retry with exponential backoff
+        console.warn(`⚠️ Sign-in attempt ${signInAttempts} failed:`, signInError.message);
+        
+        // Exponential backoff: 1s, 2s, 4s, 8s, then max 10s
+        const delay = Math.min(1000 * Math.pow(2, signInAttempts - 1), 10000);
+        console.log(`⏳ Retrying in ${delay}ms...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        
+      } catch (signInRetryError) {
+        console.error(`❌ Sign-in attempt ${signInAttempts} error:`, signInRetryError);
+        
+        // Wait before retrying even on exceptions
+        const delay = Math.min(1000 * Math.pow(2, signInAttempts - 1), 10000);
+        console.log(`⏳ Retrying after error in ${delay}ms...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
       }
-    } catch (error: any) {
-      Alert.alert("Erreur", error.message || "Une erreur est survenue lors de l'inscription");
-    } finally {
-      setLoading(false);
     }
-  };
+
+  } catch (error: any) {
+    console.error("❌ Sign-up process failed:", error);
+    
+    // Provide user-friendly error messages
+    let errorMessage = "Une erreur est survenue lors de l'inscription";
+    
+    if (error.message?.includes("already registered")) {
+      errorMessage = "Cette adresse e-mail est déjà utilisée";
+    } else if (error.message?.includes("Invalid email")) {
+      errorMessage = "Adresse e-mail invalide";
+    } else if (error.message?.includes("Password")) {
+      errorMessage = "Le mot de passe ne respecte pas les critères requis";
+    } else if (error.message) {
+      errorMessage = error.message;
+    }
+    
+    Alert.alert("Erreur d'inscription", errorMessage);
+    
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <KeyboardAvoidingView
