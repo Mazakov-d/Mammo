@@ -407,6 +407,7 @@ export default function Index() {
         showsCompass={true}
         showsScale={false}
         showsUserLocation={true}
+        showsPointsOfInterest={false}
         initialRegion={{
           latitude: location?.coords.latitude || 48.8566,
           longitude: location?.coords.longitude || 2.3522,
