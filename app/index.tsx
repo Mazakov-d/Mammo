@@ -175,6 +175,39 @@ export default function Index() {
     bottomSheetModalRef.current?.dismiss();
   }, []);
 
+  const createAlertDB = async () => {
+	const { data, error } = await supabase
+		.from('alerts')
+		.insert([
+		  {
+			creator_id: session.user.id,
+		  },
+		])
+	
+	  if (error) {
+		console.error('Error creating alert:', error.message)
+		return null
+	  }
+	
+	  return data ? data[0] : null
+  }
+
+  const updateAlertStatusDB = async () => {
+    const { data, error } = await supabase
+    .from('alerts')
+    .update({ status: 'archived' })
+	.eq('creator_id', session.user.id)
+    .select() // optional: to get the updated row
+
+  if (error) {
+    console.error('Failed to update alert status:', error.message)
+    return null
+  }
+
+  return data[0] // updated row
+}
+
+
   const handleConfirmModalPress = useCallback(async () => {
     try {
       console.log('🚨 ACTIVATING ALERT MODE');
@@ -185,6 +218,7 @@ export default function Index() {
       setOnAlert(true);
       setBSConfirmAlertMounted(false);
       bottomSheetModalRef.current?.dismiss();
+	  createAlertDB();
       
     } catch (error) {
       console.error('❌ Error activating alert mode:', error);
@@ -202,7 +236,8 @@ export default function Index() {
       setOnAlert(false);
       setShowStopSheet(false);
       stopSheetRef.current?.dismiss();
-      
+      updateAlertStatusDB();
+
     } catch (error) {
       console.error('❌ Error deactivating alert mode:', error);
       Alert.alert("Erreur", "Impossible de désactiver l'alerte");
