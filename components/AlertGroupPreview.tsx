@@ -101,7 +101,6 @@ export default function AlertGroupPreview({ isVisible }: AlertGroupPreviewProps)
       const { count: memberCount } = await supabase
         .from('emergency_group_members')
         .select('*', { count: 'exact', head: true })
-        .eq('group_id', group.id)
         .eq('status', 'accepted');
 
       // Get recent messages
