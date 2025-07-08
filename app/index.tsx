@@ -29,6 +29,7 @@ import { Redirect } from "expo-router";
 import { supabase } from "@/lib/supabase";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { locationTracker, UserLocation } from "@/lib/locationTracker";
+import { useAlertsStore } from "../store/useAlertsStore"
 
 export default function Index() {
   const router = useRouter();
@@ -36,6 +37,13 @@ export default function Index() {
   if (!session) {
     return <Redirect href="./(auth)/sign-in" />;
   }
+  const {
+    alerts,
+    isLoading,
+    error,
+    fetchAlerts,
+    subscribeAlerts,
+  } = useAlertsStore()
   const insets = useSafeAreaInsets();
 
   const [location, setLocation] = useState<Location.LocationObject | null>(null);
@@ -66,6 +74,20 @@ export default function Index() {
       isInitialized.current = false;
     };
   }, []);
+
+  useEffect(() => {
+    // 1. Charge l’historique une première fois
+    fetchAlerts()
+
+    // 2. S’abonne aux mises à jour
+    const subscription = subscribeAlerts()
+
+    // 3. Cleanup : désabonnement quand le composant se démonte
+    return () => {
+      // si subscribeAlerts() retourne un objet subscription Supabase :
+      subscription?.unsubscribe()
+    }
+  }, [])
 
   const initializeLocationTracking = async () => {
     try {
