@@ -219,11 +219,11 @@ export default function Index() {
 	  return data ? data[0] : null
   }
 
-  const updateAlertStatusDB = async () => {
+  const archiveAlertDB = async () => {
     const { data, error } = await supabase
     .from('alerts')
     .update({ status: 'archived' })
-	.eq('creator_id', session.user.id)
+	  .eq('creator_id', session.user.id)
     .select() // optional: to get the updated row
 
   if (error) {
@@ -263,7 +263,7 @@ export default function Index() {
       setOnAlert(false);
       setShowStopSheet(false);
       stopSheetRef.current?.dismiss();
-      updateAlertStatusDB();
+      archiveAlertDB();
 
     } catch (error) {
       console.error('❌ Error deactivating alert mode:', error);
@@ -330,9 +330,6 @@ export default function Index() {
     supabase.auth.signOut();
   };
 
-  const alertUsers = userLocations.filter(u => u.is_alert);
-  const onlineUsers = userLocations.length;
-
   return (
     <View style={styles.container}>
       <Stack.Screen
@@ -374,9 +371,9 @@ export default function Index() {
                         size={24}
                         color="white"
                       />
-                      {alertUsers.length > 0 && (
+                      {alerts.length > 0 && (
                         <View style={styles.alertBadge}>
-                          <Text style={styles.alertBadgeText}>{alertUsers.length}</Text>
+                          <Text style={styles.alertBadgeText}>{alerts.length}</Text>
                         </View>
                       )}
                     </Pressable>

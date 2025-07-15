@@ -23,6 +23,7 @@ export const useAlertsStore = create<AlertsState>((set, get) => ({
     const { data, error } = await supabase
       .from('alerts')
       .select('*')
+      .eq('status', 'active')
       .order('created_at', { ascending: false })
     if (error) set({ error: error.message })
     else set({ alerts: data as Alert[] })
