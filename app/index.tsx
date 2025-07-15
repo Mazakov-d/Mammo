@@ -89,6 +89,11 @@ export default function Index() {
     }
   }, [])
 
+  useEffect(() => {
+    if (!session || !alerts) return;
+    setOnAlert(alerts.some(alert => alert.creator_id === session.user.id && alert.status === "active"));
+  }, [alerts, session.user.id]);
+
   const initializeLocationTracking = async () => {
     try {
       console.log('🚀 Initializing location tracking...');
@@ -283,13 +288,15 @@ export default function Index() {
     }
   }, [location]);
 
-  const renderUserMarkers = useMemo(() => {
+  const renderUserMarkers = useCallback(() => {
     return userLocations.map((userLocation) => {
       if (userLocation.user_id === session?.user?.id) return null;
 
       let isAlert = false;
       alerts.forEach((alert) => {
-        if (alert.creatorId === userLocation.user_id && alert.status === 'active') {
+        console.log("alert", JSON.stringify(alert));
+        console.log(`Checking alert for user: ${alert.creator_id}, status: ${alert.status}`);
+        if (alert.creator_id === userLocation.user_id && alert.status === "active") {
           isAlert = true;
         }
       });
@@ -477,7 +484,7 @@ export default function Index() {
           longitudeDelta: 0.0421,
         }}
       >
-        {renderUserMarkers}
+        {renderUserMarkers()}
       </MapView>
 
       {onAlert === false && (
