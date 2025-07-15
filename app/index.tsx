@@ -283,11 +283,16 @@ export default function Index() {
     }
   }, [location]);
 
-  const renderUserMarkers = () => {
+  const renderUserMarkers = useMemo(() => {
     return userLocations.map((userLocation) => {
       if (userLocation.user_id === session?.user?.id) return null;
 
-      const isAlert = userLocation.is_alert;
+      let isAlert = false;
+      alerts.forEach((alert) => {
+        if (alert.creatorId === userLocation.user_id && alert.status === 'active') {
+          isAlert = true;
+        }
+      });
       const userName = userLocation.profiles?.full_name || 'Utilisateur';
 
       const lastSeen = new Date(userLocation.updated_at);
@@ -311,7 +316,7 @@ export default function Index() {
         />
       );
     });
-  };
+  }, [userLocations, alerts]);
 
   const handleSignOut = async () => {
     await cleanup();
@@ -472,7 +477,7 @@ export default function Index() {
           longitudeDelta: 0.0421,
         }}
       >
-        {renderUserMarkers()}
+        {renderUserMarkers}
       </MapView>
 
       {onAlert === false && (

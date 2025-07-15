@@ -46,6 +46,7 @@ export const useAlertsStore = create<AlertsState>((set, get) => ({
         'postgres_changes',
         { event: '*', schema: 'public', table: 'alerts' },
         () => {
+          console.log('🔔 Alert change detected')
           get().fetchAlerts()
         }
       )
