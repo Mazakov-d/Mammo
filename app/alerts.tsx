@@ -21,9 +21,9 @@ export default function AlertsScreen() {
     else return `il y a ${Math.floor(minutesAgo / 60)}h`;
   };
 
-  const renderAlertItem = ({ item }: { item: Alert & Profile}) => {
-    const userName = item.full_name || 'Utilisateur';
-    const timeAgo = calculateTimeAgo(item.updated_at);
+  const renderAlertItem = ({ item }: { item: Alert}) => {
+    const userName = item.profiles?.full_name || 'Utilisateur';
+    const timeAgo = calculateTimeAgo(item.created_at);
     
     return (
       <View style={styles.alertItem}>

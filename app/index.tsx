@@ -168,6 +168,7 @@ export default function Index() {
 
   const renderUserMarkers = useCallback(() => {
     return userLocations.map((userLocation) => {
+      console.log("Rendering user location:", JSON.stringify(userLocation));
       if (userLocation.user_id === session?.user?.id) return null;
 
       let isAlert = false;
@@ -200,7 +201,13 @@ export default function Index() {
             latitude: userLocation.latitude,
             longitude: userLocation.longitude,
           }}
-		//   pinColor="blue"
+          title={isAlert ? `🚨 ${userName}` : userName}
+          description={
+            isAlert
+              ? `EN ALERTE! (${timeDisplay})`
+              : `En ligne (${timeDisplay})`
+          }
+          pinColor={isAlert ? "#FF0000" : "#FFA500"}
         />
       );
     });

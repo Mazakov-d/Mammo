@@ -6,7 +6,7 @@ import type { RealtimeChannel } from '@supabase/supabase-js'
 import { Profile } from '@/types/Profile'
 
 interface AlertsState {
-  alerts: (Alert & Profile)[]
+  alerts: (Alert)[]
   isLoading: boolean
   error: string | null
   fetchAlerts: () => Promise<void>
