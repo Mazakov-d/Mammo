@@ -28,8 +28,9 @@ import { useAuth } from "@/provider/AuthProvider";
 import { Redirect } from "expo-router";
 import { supabase } from "@/lib/supabase";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { locationTracker, UserLocation } from "@/lib/locationTracker";
-import { useAlertsStore } from "../store/useAlertsStore"
+import { locationTracker } from "@/lib/locationTracker";
+import { useAlertsStore } from "../store/useAlertsStore";
+import { UserLocation } from "@/types/UserLocation";
 
 export default function Index() {
   const router = useRouter();
@@ -37,158 +38,46 @@ export default function Index() {
   if (!session) {
     return <Redirect href="./(auth)/sign-in" />;
   }
-  const {
-    alerts,
-    isLoading,
-    error,
-    fetchAlerts,
-    subscribeAlerts,
-  } = useAlertsStore()
+  const { alerts, isLoading, error, fetchAlerts, subscribeAlerts } =
+    useAlertsStore();
   const insets = useSafeAreaInsets();
 
-  const [location, setLocation] = useState<Location.LocationObject | null>(null);
+  const [location, setLocation] = useState<Location.LocationObject | null>(
+    null
+  );
   const [userLocations, setUserLocations] = useState<UserLocation[]>([]);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [onAlert, setOnAlert] = useState(false);
   const [BSConfirmAlertMounted, setBSConfirmAlertMounted] = useState(false);
   const [showStopSheet, setShowStopSheet] = useState(false);
-  const [isRealtimeConnected, setIsRealtimeConnected] = useState(false);
-  
+
   const bottomSheetModalRef = useRef<BottomSheetModal>(null);
   const stopSheetRef = useRef<BottomSheetModal>(null);
   const mapRef = useRef<MapView>(null);
-  const locationSubscription = useRef<any>(null);
-  const isInitialized = useRef(false);
-
-  
-  // Initialize location tracking when component mounts
-  useEffect(() => {
-    if (isInitialized.current) return;
-    isInitialized.current = true;
-
-    initializeLocationTracking();
-    setupEnhancedRealtimeSubscription();
-
-    return () => {
-      cleanup();
-      isInitialized.current = false;
-    };
-  }, []);
 
   useEffect(() => {
     // 1. Charge l’historique une première fois
-    fetchAlerts()
+    fetchAlerts();
 
     // 2. S’abonne aux mises à jour
-    const subscription = subscribeAlerts()
+    const subscription = subscribeAlerts();
 
     // 3. Cleanup : désabonnement quand le composant se démonte
     return () => {
       // si subscribeAlerts() retourne un objet subscription Supabase :
-      subscription?.unsubscribe()
-    }
-  }, [])
+      subscription?.unsubscribe();
+    };
+  }, []);
 
   useEffect(() => {
     if (!session || !alerts) return;
-    setOnAlert(alerts.some(alert => alert.creator_id === session.user.id && alert.status === "active"));
-  }, [alerts, session.user.id]);
-
-  const initializeLocationTracking = async () => {
-    try {
-      console.log('🚀 Initializing location tracking...');
-      
-      let { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== "granted") {
-        setErrorMsg("Permission to access location was denied");
-        return;
-      }
-      
-      let loc = await Location.getCurrentPositionAsync({});
-      console.log("Location:", loc);
-      setLocation(loc);
-      
-      await locationTracker.startTracking(false);
-      await loadUserLocations();
-      
-      console.log('✅ Location tracking initialized');
-    } catch (error) {
-      console.error('❌ Failed to initialize location tracking:', error);
-      Alert.alert('Erreur', 'Impossible d\'accéder à la localisation');
-    }
-  };
-
-  const setupEnhancedRealtimeSubscription = () => {
-    console.log('🔄 Setting up enhanced real-time subscription');
-    
-    // Enhanced subscription with better error handling and reconnection
-    locationSubscription.current = locationTracker.subscribeToVisibleLocationChanges(
-      (locations) => {
-        console.log(`📊 Real-time update: ${locations.length} visible user locations`);
-        setUserLocations(locations);
-        setIsRealtimeConnected(true);
-        
-        // Update current user's location and alert status
-        const currentUser = locations.find(loc => loc.user_id === session?.user?.id);
-        if (currentUser) {
-          setLocation({
-            coords: {
-              latitude: currentUser.latitude,
-              longitude: currentUser.longitude,
-              altitude: 0,
-              accuracy: 0,
-              heading: 0,
-              speed: 0,
-              altitudeAccuracy: 0,
-            },
-            timestamp: Date.now(),
-          });
-          
-          // Auto-sync alert status
-          if (currentUser.is_alert !== onAlert) {
-            console.log(`🔄 Auto-syncing alert status: ${currentUser.is_alert}`);
-            setOnAlert(currentUser.is_alert);
-          }
-        }
-      }
+    setOnAlert(
+      alerts.some(
+        (alert) =>
+          alert.creator_id === session.user.id && alert.status === "active"
+      )
     );
-
-    // Monitor connection status
-    const checkConnection = setInterval(() => {
-      const status = locationTracker.getStatus();
-      setIsRealtimeConnected(status.hasRealtimeSubscription);
-      
-      if (!status.hasRealtimeSubscription) {
-        console.log('⚠️ Real-time connection lost, attempting to reconnect...');
-        setupEnhancedRealtimeSubscription();
-      }
-    }, 30000); // Check every 30 seconds
-
-    return () => clearInterval(checkConnection);
-  };
-
-  const loadUserLocations = async () => {
-    try {
-      const locations = await locationTracker.getVisibleUserLocations();
-      setUserLocations(locations);
-      console.log(`📊 Loaded ${locations.length} visible user locations`);
-    } catch (error) {
-      console.error('❌ Failed to load user locations:', error);
-    }
-  };
-
-  const cleanup = async () => {
-    console.log('🧹 Cleaning up location tracking...');
-    
-    await locationTracker.stopTracking();
-    
-    if (locationSubscription.current) {
-      locationSubscription.current.unsubscribe();
-      locationSubscription.current = null;
-    }
-    
-    locationTracker.unsubscribeFromRealtimeChanges();
-  };
+  }, [alerts, session.user.id]);
 
   const handlePresentModalPress = useCallback(() => {
     setBSConfirmAlertMounted(true);
@@ -203,70 +92,60 @@ export default function Index() {
   }, []);
 
   const createAlertDB = async () => {
-	const { data, error } = await supabase
-		.from('alerts')
-		.insert([
-		  {
-			creator_id: session.user.id,
-		  },
-		])
-	
-	  if (error) {
-		console.error('Error creating alert:', error.message)
-		return null
-	  }
-	
-	  return data ? data[0] : null
-  }
+    const { data, error } = await supabase.from("alerts").insert([
+      {
+        creator_id: session.user.id,
+      },
+    ]);
+
+    if (error) {
+      console.error("Error creating alert:", error.message);
+      return null;
+    }
+
+    return data ? data[0] : null;
+  };
 
   const archiveAlertDB = async () => {
     const { data, error } = await supabase
-    .from('alerts')
-    .update({ status: 'archived' })
-	  .eq('creator_id', session.user.id)
-    .select() // optional: to get the updated row
+      .from("alerts")
+      .update({ status: "archived" })
+      .eq("creator_id", session.user.id)
+      .select(); // optional: to get the updated row
 
-  if (error) {
-    console.error('Failed to update alert status:', error.message)
-    return null
-  }
+    if (error) {
+      console.error("Failed to update alert status:", error.message);
+      return null;
+    }
 
-  return data[0] // updated row
-}
-
+    return data[0]; // updated row
+  };
 
   const handleConfirmModalPress = useCallback(async () => {
     try {
-      console.log('🚨 ACTIVATING ALERT MODE');
-      console.log('📍 Now tracking every 5 meters of movement');
-      
-      await locationTracker.activateAlert();
-      
+      console.log("🚨 ACTIVATING ALERT MODE");
+
       setOnAlert(true);
       setBSConfirmAlertMounted(false);
       bottomSheetModalRef.current?.dismiss();
-	  createAlertDB();
-      
+      createAlertDB();
     } catch (error) {
-      console.error('❌ Error activating alert mode:', error);
+      console.error("❌ Error activating alert mode:", error);
       Alert.alert("Erreur", "Impossible d'activer le mode alerte");
     }
   }, []);
 
   const handleStopAlert = useCallback(async () => {
     try {
-      console.log('✅ DEACTIVATING ALERT MODE');
-      console.log('📅 Returning to background mode');
-      
-      await locationTracker.deactivateAlert();
-      
+      console.log("✅ DEACTIVATING ALERT MODE");
+      console.log("📅 Returning to background mode");
+
       setOnAlert(false);
       setShowStopSheet(false);
       stopSheetRef.current?.dismiss();
       archiveAlertDB();
-
     } catch (error) {
-      console.error('❌ Error deactivating alert mode:', error);
+      console.error("❌ Error deactivating alert mode:", error);
       Alert.alert("Erreur", "Impossible de désactiver l'alerte");
     }
   }, []);
@@ -295,18 +174,23 @@ export default function Index() {
       let isAlert = false;
       alerts.forEach((alert) => {
         console.log("alert", JSON.stringify(alert));
-        console.log(`Checking alert for user: ${alert.creator_id}, status: ${alert.status}`);
-        if (alert.creator_id === userLocation.user_id && alert.status === "active") {
+        console.log(
+          `Checking alert for user: ${alert.creator_id}, status: ${alert.status}`
+        );
+        if (
+          alert.creator_id === userLocation.user_id &&
+          alert.status === "active"
+        ) {
           isAlert = true;
         }
       });
-      const userName = userLocation.profiles?.full_name || 'Utilisateur';
+      const userName = userLocation.profiles?.full_name || "Utilisateur";
 
       const lastSeen = new Date(userLocation.updated_at);
       const minutesAgo = Math.floor((Date.now() - lastSeen.getTime()) / 60000);
-      
+
       let timeDisplay;
-      if (minutesAgo < 1) timeDisplay = 'à l\'instant';
+      if (minutesAgo < 1) timeDisplay = "à l'instant";
       else if (minutesAgo < 60) timeDisplay = `il y a ${minutesAgo}min`;
       else timeDisplay = `il y a ${Math.floor(minutesAgo / 60)}h`;
 
@@ -318,7 +202,11 @@ export default function Index() {
             longitude: userLocation.longitude,
           }}
           title={isAlert ? `🚨 ${userName}` : userName}
-          description={isAlert ? `EN ALERTE! (${timeDisplay})` : `En ligne (${timeDisplay})`}
+          description={
+            isAlert
+              ? `EN ALERTE! (${timeDisplay})`
+              : `En ligne (${timeDisplay})`
+          }
           pinColor={isAlert ? "#FF0000" : "#FFA500"}
         />
       );
@@ -326,7 +214,6 @@ export default function Index() {
   }, [userLocations, alerts]);
 
   const handleSignOut = async () => {
-    await cleanup();
     supabase.auth.signOut();
   };
 
@@ -373,11 +260,13 @@ export default function Index() {
                       />
                       {alerts.length > 0 && (
                         <View style={styles.alertBadge}>
-                          <Text style={styles.alertBadgeText}>{alerts.length}</Text>
+                          <Text style={styles.alertBadgeText}>
+                            {alerts.length}
+                          </Text>
                         </View>
                       )}
                     </Pressable>
-                    
+
                     <View
                       style={{
                         flexDirection: "row",
@@ -463,7 +352,7 @@ export default function Index() {
           },
         }}
       />
-      
+
       <MapView
         ref={mapRef}
         style={styles.map}
@@ -556,41 +445,41 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   userCountBadge: {
-    position: 'absolute',
+    position: "absolute",
     top: -5,
     right: -5,
-    backgroundColor: '#2E7D32',
+    backgroundColor: "#2E7D32",
     borderRadius: 10,
     minWidth: 20,
     height: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   userCountText: {
-    color: 'white',
+    color: "white",
     fontSize: 12,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
   alertBadge: {
-    position: 'absolute',
+    position: "absolute",
     top: -8,
     right: -8,
     backgroundColor: Colors.red,
     borderRadius: 12,
     minWidth: 24,
     height: 24,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   alertBadgeText: {
-    color: 'white',
+    color: "white",
     fontSize: 12,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
   connectionDot: {
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: 'white',
+    backgroundColor: "white",
   },
 });
