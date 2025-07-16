@@ -32,7 +32,6 @@ import { UserLocation } from "@/types/UserLocation";
 import { locationTracker } from "@/lib/locationTracker";
 import type { UserLocationChangeEvent } from "react-native-maps";
 
-
 export default function Index() {
   const router = useRouter();
   const { session } = useAuth();
@@ -43,7 +42,8 @@ export default function Index() {
     useAlertsStore();
   const insets = useSafeAreaInsets();
 
-  const { myLocation, userLocations } = useLocationStore();
+  const { myLocation, userLocations, fetchVisibleLocations } =
+    useLocationStore();
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [onAlert, setOnAlert] = useState(false);
   const [BSConfirmAlertMounted, setBSConfirmAlertMounted] = useState(false);
@@ -54,6 +54,7 @@ export default function Index() {
   const mapRef = useRef<MapView>(null);
 
   useEffect(() => {
+    fetchVisibleLocations();
     locationTracker.startTracking();
 
     fetchAlerts();
@@ -200,13 +201,7 @@ export default function Index() {
             latitude: userLocation.latitude,
             longitude: userLocation.longitude,
           }}
-          title={isAlert ? `🚨 ${userName}` : userName}
-          description={
-            isAlert
-              ? `EN ALERTE! (${timeDisplay})`
-              : `En ligne (${timeDisplay})`
-          }
-          pinColor={isAlert ? "#FF0000" : "#FFA500"}
+		  pinColor="blue"
         />
       );
     });
