@@ -55,7 +55,6 @@ export class LocationTracker {
             user_id:    user.id,
             latitude,
             longitude,
-            last_seen:  new Date().toISOString(),
             updated_at: new Date().toISOString(),
           },
           { onConflict: 'user_id' }

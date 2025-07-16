@@ -56,6 +56,7 @@ export default function Index() {
   const mapRef = useRef<MapView>(null);
 
   useEffect(() => {
+    locationTracker.startTracking();
     // 1. Charge l’historique une première fois
     fetchAlerts();
 

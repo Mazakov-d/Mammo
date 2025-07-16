@@ -369,7 +369,6 @@ class EmergencyOfflineManager {
         latitude: location.latitude,
         longitude: location.longitude,
         is_alert: location.isAlert,
-        last_seen: new Date(location.timestamp).toISOString(),
         updated_at: new Date(location.timestamp).toISOString(),
       }, {
         onConflict: 'user_id'

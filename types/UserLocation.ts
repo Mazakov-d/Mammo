@@ -3,7 +3,6 @@ export interface UserLocation {
   latitude: number; // Latitude GPS
   longitude: number; // Longitude GPS
   is_alert: boolean; // Indique si l'utilisateur est en alerte
-  last_seen: string; // Dernière fois vu (ISO timestamp)
   updated_at: string; // Dernière mise à jour (ISO timestamp)
   created_at?: string; // Date de création (ISO timestamp)
   
