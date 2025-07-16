@@ -1,6 +1,5 @@
 // app/index.tsx - Updated with friends system
 
-import { Button } from "@react-navigation/elements";
 import React, {
   useRef,
   useMemo,
@@ -23,14 +22,14 @@ import BSConfirmStop from "../components/BSConfirmStop";
 import { Colors, Layout } from "../constants/Colors";
 import { BottomSheetModal } from "@gorhom/bottom-sheet";
 import { AntDesign, Fontisto, Feather } from "@expo/vector-icons";
-import * as Location from "expo-location";
 import { useAuth } from "@/provider/AuthProvider";
 import { Redirect } from "expo-router";
 import { supabase } from "@/lib/supabase";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { locationTracker } from "@/lib/locationTracker";
 import { useAlertsStore } from "../store/useAlertsStore";
+import { useLocationStore } from "../store/useUserLocationsStore";
 import { UserLocation } from "@/types/UserLocation";
+import { locationTracker } from "@/lib/locationTracker";
 import type { UserLocationChangeEvent } from "react-native-maps";
 
 
@@ -44,10 +43,7 @@ export default function Index() {
     useAlertsStore();
   const insets = useSafeAreaInsets();
 
-  const [location, setLocation] = useState<Location.LocationObject | null>(
-    null
-  );
-  const [userLocations, setUserLocations] = useState<UserLocation[]>([]);
+  const { myLocation, userLocations } = useLocationStore();
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [onAlert, setOnAlert] = useState(false);
   const [BSConfirmAlertMounted, setBSConfirmAlertMounted] = useState(false);
@@ -59,15 +55,14 @@ export default function Index() {
 
   useEffect(() => {
     locationTracker.startTracking();
-    // 1. Charge l’historique une première fois
+
     fetchAlerts();
 
-    // 2. S’abonne aux mises à jour
     const subscription = subscribeAlerts();
 
-    // 3. Cleanup : désabonnement quand le composant se démonte
     return () => {
-      // si subscribeAlerts() retourne un objet subscription Supabase :
+      locationTracker.stopTracking();
+
       subscription?.unsubscribe();
     };
   }, []);
@@ -160,15 +155,15 @@ export default function Index() {
   }, []);
 
   useEffect(() => {
-    if (location && mapRef.current) {
+    if (myLocation && mapRef.current) {
       mapRef.current.animateToRegion({
-        latitude: location.coords.latitude,
-        longitude: location.coords.longitude,
+        latitude: myLocation.coords.latitude, // Direct access to latitude
+        longitude: myLocation.coords.longitude, // Direct access to longitude
         latitudeDelta: 0.0922,
         longitudeDelta: 0.0421,
       });
     }
-  }, [location]);
+  }, [myLocation]);
 
   const renderUserMarkers = useCallback(() => {
     return userLocations.map((userLocation) => {
@@ -367,8 +362,8 @@ export default function Index() {
         showsUserLocation={true}
         showsPointsOfInterest={false}
         initialRegion={{
-          latitude: location?.coords.latitude || 48.8566,
-          longitude: location?.coords.longitude || 2.3522,
+          latitude: myLocation?.coords.latitude || 48.8566, // Use myLocation
+          longitude: myLocation?.coords.longitude || 2.3522, // Use myLocation
           latitudeDelta: 0.0922,
           longitudeDelta: 0.0421,
         }}

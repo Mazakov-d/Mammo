@@ -1,8 +1,10 @@
 import { create } from 'zustand';
 import { supabase } from '../lib/supabase';
 import { UserLocation } from '../types/UserLocation';
+import { LocationObject } from 'expo-location';
 
 interface LocationState {
+  myLocation: LocationObject | null;
   userLocations: UserLocation[];
   isLoading: boolean;
   error: string | null;
@@ -13,6 +15,7 @@ interface LocationState {
 }
 
 export const useLocationStore = create<LocationState>((set, get) => ({
+  myLocation: null,
   userLocations: [],
   isLoading: false,
   error: null,
