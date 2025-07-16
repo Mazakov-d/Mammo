@@ -3,9 +3,10 @@ import { create } from 'zustand'
 import { supabase } from '../lib/supabase'
 import { Alert } from '../types/Alert'
 import type { RealtimeChannel } from '@supabase/supabase-js'
+import { Profile } from '@/types/Profile'
 
 interface AlertsState {
-  alerts: Alert[]
+  alerts: (Alert & Profile)[]
   isLoading: boolean
   error: string | null
   fetchAlerts: () => Promise<void>
@@ -22,11 +23,22 @@ export const useAlertsStore = create<AlertsState>((set, get) => ({
     set({ isLoading: true, error: null })
     const { data, error } = await supabase
       .from('alerts')
-      .select('*')
+      .select(`
+        *,
+        profiles (
+          id,
+          full_name,
+          first_name,
+          last_name,
+          avatar_url,
+          updated_at
+        )
+      `)
       .eq('status', 'active')
       .order('created_at', { ascending: false })
+    console.log('Fetched alerts:', JSON.stringify(data, null, 2))
     if (error) set({ error: error.message })
-    else set({ alerts: data as Alert[] })
+    else set({ alerts: data as (Alert & Profile)[] })
     set({ isLoading: false })
   },
 

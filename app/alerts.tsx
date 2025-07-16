@@ -3,41 +3,14 @@ import { View, Text, StyleSheet, Image, Pressable, FlatList, ScrollView } from "
 import { Stack, useRouter } from "expo-router";
 import { Colors } from "@/constants/Colors";
 import { AntDesign, Feather } from "@expo/vector-icons";
-import { locationTracker, UserLocation } from "@/lib/locationTracker";
+import { locationTracker } from "@/lib/locationTracker";
+import { Alert } from "@/types/Alert";
+import { Profile } from "@/types/Profile";
+import { useAlertsStore } from "@/store/useAlertsStore";
 
 export default function AlertsScreen() {
   const router = useRouter();
-  const [alertUsers, setAlertUsers] = useState<UserLocation[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    loadAlertUsers();
-    
-    // Subscribe to real-time updates
-    const subscription = locationTracker.subscribeToVisibleLocationChanges((locations) => {
-      const alerts = locations.filter(loc => loc.is_alert);
-      setAlertUsers(alerts);
-    });
-
-    return () => {
-      if (subscription) {
-        subscription.unsubscribe();
-      }
-    };
-  }, []);
-
-  const loadAlertUsers = async () => {
-    try {
-      setLoading(true);
-      const locations = await locationTracker.getVisibleUserLocations();
-      const alerts = locations.filter(loc => loc.is_alert);
-      setAlertUsers(alerts);
-    } catch (error) {
-      console.error('Failed to load alerts:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const { alerts } = useAlertsStore();
 
   const calculateTimeAgo = (timestamp: string) => {
     const lastSeen = new Date(timestamp);
@@ -48,8 +21,8 @@ export default function AlertsScreen() {
     else return `il y a ${Math.floor(minutesAgo / 60)}h`;
   };
 
-  const renderAlertItem = ({ item }: { item: UserLocation }) => {
-    const userName = item.profiles?.full_name || 'Utilisateur';
+  const renderAlertItem = ({ item }: { item: Alert & Profile}) => {
+    const userName = item.full_name || 'Utilisateur';
     const timeAgo = calculateTimeAgo(item.updated_at);
     
     return (
@@ -96,12 +69,8 @@ export default function AlertsScreen() {
           ),
         }}
       />
-      
-      {loading ? (
-        <View style={styles.centerContainer}>
-          <Text style={styles.loadingText}>Chargement...</Text>
-        </View>
-      ) : alertUsers.length === 0 ? (
+
+      {alerts.length === 0 ? (
         <View style={styles.noAlertsContainer}>
           <Image
             source={require("@/assets/images/mammo_no_alert.png")}
@@ -119,10 +88,10 @@ export default function AlertsScreen() {
           showsVerticalScrollIndicator={false}
         >
           <Text style={styles.alertsTitle}>
-            {alertUsers.length} {alertUsers.length > 1 ? 'alertes actives' : 'alerte active'}
+            {alerts.length} {alerts.length > 1 ? 'alertes actives' : 'alerte active'}
           </Text>
-          {alertUsers.map((user) => (
-            <View key={user.user_id}>
+          {alerts.map((user) => (
+            <View key={user.id}>
               {renderAlertItem({ item: user })}
             </View>
           ))}

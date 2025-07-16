@@ -31,6 +31,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { locationTracker } from "@/lib/locationTracker";
 import { useAlertsStore } from "../store/useAlertsStore";
 import { UserLocation } from "@/types/UserLocation";
+import type { UserLocationChangeEvent } from "react-native-maps";
+
 
 export default function Index() {
   const router = useRouter();
