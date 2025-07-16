@@ -200,7 +200,7 @@ export default function Index() {
             latitude: userLocation.latitude,
             longitude: userLocation.longitude,
           }}
-		  pinColor="blue"
+		//   pinColor="blue"
         />
       );
     });
