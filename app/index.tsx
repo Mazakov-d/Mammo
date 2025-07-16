@@ -14,6 +14,7 @@ import {
   TouchableOpacity,
   Pressable,
   Alert,
+  Image,
 } from "react-native";
 import MapView, { Marker } from "react-native-maps";
 import { Stack, useRouter } from "expo-router";
@@ -167,50 +168,85 @@ export default function Index() {
   }, [myLocation]);
 
   const renderUserMarkers = useCallback(() => {
-    return userLocations.map((userLocation) => {
-      console.log("Rendering user location:", JSON.stringify(userLocation));
-      if (userLocation.user_id === session?.user?.id) return null;
+	return userLocations.map((userLocation) => {
+		console.log("Rendering user location:", JSON.stringify(userLocation));
+		if (userLocation.user_id === session?.user?.id) return null;
 
-      let isAlert = false;
-      alerts.forEach((alert) => {
-        console.log("alert", JSON.stringify(alert));
-        console.log(
-          `Checking alert for user: ${alert.creator_id}, status: ${alert.status}`
-        );
-        if (
-          alert.creator_id === userLocation.user_id &&
-          alert.status === "active"
-        ) {
-          isAlert = true;
-        }
-      });
-      const userName = userLocation.profiles?.full_name || "Utilisateur";
+		let isAlert = false;
+		alerts.forEach((alert) => {
+			console.log("alert", JSON.stringify(alert));
+			console.log(
+				`Checking alert for user: ${alert.creator_id}, status: ${alert.status}`
+			);
+			if (
+				alert.creator_id === userLocation.user_id &&
+				alert.status === "active"
+			) {
+				isAlert = true;
+			}
+		});
+		const userName = userLocation.profiles?.full_name || "Utilisateur";
 
-      const lastSeen = new Date(userLocation.updated_at);
-      const minutesAgo = Math.floor((Date.now() - lastSeen.getTime()) / 60000);
+		const lastSeen = new Date(userLocation.updated_at);
+		const minutesAgo = Math.floor((Date.now() - lastSeen.getTime()) / 60000);
 
-      let timeDisplay;
-      if (minutesAgo < 1) timeDisplay = "à l'instant";
-      else if (minutesAgo < 60) timeDisplay = `il y a ${minutesAgo}min`;
-      else timeDisplay = `il y a ${Math.floor(minutesAgo / 60)}h`;
+		let timeDisplay;
+		if (minutesAgo < 1) timeDisplay = "à l'instant";
+		else if (minutesAgo < 60) timeDisplay = `il y a ${minutesAgo}min`;
+		else timeDisplay = `il y a ${Math.floor(minutesAgo / 60)}h`;
 
-      return (
-        <Marker
-          key={userLocation.user_id}
-          coordinate={{
-            latitude: userLocation.latitude,
-            longitude: userLocation.longitude,
-          }}
-          title={isAlert ? `🚨 ${userName}` : userName}
-          description={
-            isAlert
-              ? `EN ALERTE! (${timeDisplay})`
-              : `En ligne (${timeDisplay})`
-          }
-          pinColor={isAlert ? "#FF0000" : "#FFA500"}
-        />
-      );
-    });
+		return (
+			<Marker
+				key={userLocation.user_id}
+				coordinate={{
+					latitude: userLocation.latitude,
+					longitude: userLocation.longitude,
+				}}
+				title={isAlert ? `🚨 ${userName}` : userName}
+				description={
+					isAlert
+						? `EN ALERTE! (${timeDisplay})`
+						: `En ligne (${timeDisplay})`
+				}
+			>
+				<View style={{
+					width: 40,
+					height: 40,
+					borderRadius: 20,
+					backgroundColor: Colors.orange,
+					borderWidth: 3,
+					borderColor: isAlert ? Colors.red : Colors.orange,
+					overflow: 'hidden',
+					shadowColor: '#000',
+					shadowOffset: { width: 0, height: 2 },
+					shadowOpacity: 0.3,
+					shadowRadius: 4,
+					elevation: 5,
+					justifyContent: 'center',
+					alignItems: 'center',
+				}}>
+					{userLocation.profiles?.avatar_url ? (
+						<Image
+							source={{ uri: userLocation.profiles.avatar_url }}
+							style={{
+								width: '100%',
+								height: '100%',
+							}}
+							resizeMode="cover"
+						/>
+					) : (
+						<Text style={{
+							fontSize: 20,
+							fontWeight: 'bold',
+							color: isAlert ? Colors.red : Colors.white,
+						}}>
+							{userName.charAt(0).toUpperCase()}
+						</Text>
+					)}
+				</View>
+			</Marker>
+		);
+	});
   }, [userLocations, alerts]);
 
   const handleSignOut = async () => {
