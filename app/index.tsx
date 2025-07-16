@@ -14,6 +14,7 @@ import {
   TouchableOpacity,
   Pressable,
   Alert,
+  Image,
 } from "react-native";
 import MapView, { Marker } from "react-native-maps";
 import { Stack, useRouter } from "expo-router";
@@ -205,33 +206,64 @@ export default function Index() {
       const lastSeen = new Date(userLocation.updated_at);
       const minutesAgo = Math.floor((Date.now() - lastSeen.getTime()) / 60000);
 
-      let timeDisplay;
-      if (minutesAgo < 1) timeDisplay = "à l'instant";
-      else if (minutesAgo < 60) timeDisplay = `il y a ${minutesAgo}min`;
-      else timeDisplay = `il y a ${Math.floor(minutesAgo / 60)}h`;
+		let timeDisplay;
+		if (minutesAgo < 1) timeDisplay = "à l'instant";
+		else if (minutesAgo < 60) timeDisplay = `il y a ${minutesAgo}min`;
+		else timeDisplay = `il y a ${Math.floor(minutesAgo / 60)}h`;
 
-      console.log("✅ Returning user pin:", userName);
-      return (
-        <Marker
-          key={userLocation.user_id}
-          coordinate={{
-            latitude: userLocation.latitude,
-            longitude: userLocation.longitude,
-          }}
-          title={isAlert ? `🚨 ${userName}` : userName}
-          description={
-            isAlert
-              ? `EN ALERTE! (${timeDisplay})`
-              : `En ligne (${timeDisplay})`
-          }
-          pinColor={isAlert ? "#FF0000" : "#FFA500"}
-        />
-      );
-    }).filter(marker => marker !== null);
-    
-    console.log("🎯 Final markers count:", markers.length);
-    return markers;
-  }, [userLocations, alerts, session?.user?.id]);
+		return (
+			<Marker
+				key={userLocation.user_id}
+				coordinate={{
+					latitude: userLocation.latitude,
+					longitude: userLocation.longitude,
+				}}
+				title={isAlert ? `🚨 ${userName}` : userName}
+				description={
+					isAlert
+						? `EN ALERTE! (${timeDisplay})`
+						: `En ligne (${timeDisplay})`
+				}
+			>
+				<View style={{
+					width: 40,
+					height: 40,
+					borderRadius: 20,
+					backgroundColor: Colors.orange,
+					borderWidth: 3,
+					borderColor: isAlert ? Colors.red : Colors.orange,
+					overflow: 'hidden',
+					shadowColor: '#000',
+					shadowOffset: { width: 0, height: 2 },
+					shadowOpacity: 0.3,
+					shadowRadius: 4,
+					elevation: 5,
+					justifyContent: 'center',
+					alignItems: 'center',
+				}}>
+					{userLocation.profiles?.avatar_url ? (
+						<Image
+							source={{ uri: userLocation.profiles.avatar_url }}
+							style={{
+								width: '100%',
+								height: '100%',
+							}}
+							resizeMode="cover"
+						/>
+					) : (
+						<Text style={{
+							fontSize: 20,
+							fontWeight: 'bold',
+							color: isAlert ? Colors.red : Colors.white,
+						}}>
+							{userName.charAt(0).toUpperCase()}
+						</Text>
+					)}
+				</View>
+			</Marker>
+		);
+	});
+  }, [userLocations, alerts]);
 
   const handleSignOut = async () => {
     supabase.auth.signOut();
