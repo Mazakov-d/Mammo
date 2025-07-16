@@ -42,7 +42,7 @@ export default function Index() {
     useAlertsStore();
   const insets = useSafeAreaInsets();
 
-  const { myLocation, userLocations, fetchVisibleLocations } =
+  const { myLocation, userLocations, fetchVisibleLocations, subscribeToLocationChanges } =
     useLocationStore();
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [onAlert, setOnAlert] = useState(false);
@@ -59,12 +59,13 @@ export default function Index() {
 
     fetchAlerts();
 
-    const subscription = subscribeAlerts();
+    const alertsSubscription = subscribeAlerts();
+    const locationsSubscription = subscribeToLocationChanges();
 
     return () => {
       locationTracker.stopTracking();
-
-      subscription?.unsubscribe();
+      alertsSubscription?.unsubscribe();
+      locationsSubscription();
     };
   }, []);
 
@@ -166,17 +167,32 @@ export default function Index() {
     }
   }, [myLocation]);
 
+
   const renderUserMarkers = useCallback(() => {
-    return userLocations.map((userLocation) => {
-      console.log("Rendering user location:", JSON.stringify(userLocation));
-      if (userLocation.user_id === session?.user?.id) return null;
+    console.log("🔍 renderUserMarkers called - userLocations:", userLocations.length);
+    console.log("📊 Valid coordinates:", userLocations.filter(loc => 
+      loc.latitude && loc.longitude && 
+      !isNaN(loc.latitude) && !isNaN(loc.longitude)
+    ).length);
+    
+    const markers = userLocations.map((userLocation) => {
+      console.log("📍 Processing user:", userLocation.profiles?.full_name, "ID:", userLocation.user_id);
+      console.log("📍 Coords:", userLocation.latitude, userLocation.longitude);
+      
+      if (userLocation.user_id === session?.user?.id) {
+        console.log("❌ Skipping own location");
+        return null;
+      }
+
+      // Vérifier les coordonnées
+      if (!userLocation.latitude || !userLocation.longitude || 
+          isNaN(userLocation.latitude) || isNaN(userLocation.longitude)) {
+        console.log("❌ Invalid coordinates for user:", userLocation.profiles?.full_name);
+        return null;
+      }
 
       let isAlert = false;
       alerts.forEach((alert) => {
-        console.log("alert", JSON.stringify(alert));
-        console.log(
-          `Checking alert for user: ${alert.creator_id}, status: ${alert.status}`
-        );
         if (
           alert.creator_id === userLocation.user_id &&
           alert.status === "active"
@@ -184,8 +200,8 @@ export default function Index() {
           isAlert = true;
         }
       });
+      
       const userName = userLocation.profiles?.full_name || "Utilisateur";
-
       const lastSeen = new Date(userLocation.updated_at);
       const minutesAgo = Math.floor((Date.now() - lastSeen.getTime()) / 60000);
 
@@ -194,6 +210,7 @@ export default function Index() {
       else if (minutesAgo < 60) timeDisplay = `il y a ${minutesAgo}min`;
       else timeDisplay = `il y a ${Math.floor(minutesAgo / 60)}h`;
 
+      console.log("✅ Returning user pin:", userName);
       return (
         <Marker
           key={userLocation.user_id}
@@ -210,8 +227,11 @@ export default function Index() {
           pinColor={isAlert ? "#FF0000" : "#FFA500"}
         />
       );
-    });
-  }, [userLocations, alerts]);
+    }).filter(marker => marker !== null);
+    
+    console.log("🎯 Final markers count:", markers.length);
+    return markers;
+  }, [userLocations, alerts, session?.user?.id]);
 
   const handleSignOut = async () => {
     supabase.auth.signOut();
@@ -354,6 +374,7 @@ export default function Index() {
       />
 
       <MapView
+        // key={`map-${userLocations.length}-${alerts.length}`}
         ref={mapRef}
         style={styles.map}
         showsBuildings={false}
@@ -370,7 +391,7 @@ export default function Index() {
           longitudeDelta: 0.0421,
         }}
       >
-        {renderUserMarkers()}
+        {userLocations.length > 0 && renderUserMarkers()}
       </MapView>
 
       {onAlert === false && (
