@@ -1,10 +1,10 @@
 import { create } from 'zustand';
 import { supabase } from '../lib/supabase';
 import { UserLocation } from '../types/UserLocation';
-import { MyLocation } from '@/types/MyLocation';
+import { LocationObject } from 'expo-location';
 
 interface LocationState {
-  myLocation: MyLocation | null;
+  myLocation: LocationObject | null;
   userLocations: UserLocation[];
   isLoading: boolean;
   error: string | null;

@@ -41,7 +41,7 @@ export default function Index() {
     useAlertsStore();
   const insets = useSafeAreaInsets();
 
-  const { myLocation, userLocations} = useLocationStore();
+  const { myLocation, userLocations } = useLocationStore();
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [onAlert, setOnAlert] = useState(false);
   const [BSConfirmAlertMounted, setBSConfirmAlertMounted] = useState(false);
@@ -52,35 +52,15 @@ export default function Index() {
   const mapRef = useRef<MapView>(null);
 
   useEffect(() => {
-    // Start location tracking when app loads
     locationTracker.startTracking();
-    
-    // 1. Charge l'historique une première fois
+
     fetchAlerts();
 
-    // 2. S'abonne aux mises à jour
     const subscription = subscribeAlerts();
 
-    // 3. Cleanup : désabonnement quand le composant se démonte
     return () => {
-      // Stop location tracking when component unmounts
       locationTracker.stopTracking();
-      
-      // si subscribeAlerts() retourne un objet subscription Supabase :
-      subscription?.unsubscribe();
-    };
-  }, []);
 
-  useEffect(() => {
-    // 1. Charge l’historique une première fois
-    fetchAlerts();
-
-    // 2. S’abonne aux mises à jour
-    const subscription = subscribeAlerts();
-
-    // 3. Cleanup : désabonnement quand le composant se démonte
-    return () => {
-      // si subscribeAlerts() retourne un objet subscription Supabase :
       subscription?.unsubscribe();
     };
   }, []);
@@ -175,8 +155,8 @@ export default function Index() {
   useEffect(() => {
     if (myLocation && mapRef.current) {
       mapRef.current.animateToRegion({
-        latitude: myLocation.latitude, // Direct access to latitude
-        longitude: myLocation.longitude, // Direct access to longitude
+        latitude: myLocation.coords.latitude, // Direct access to latitude
+        longitude: myLocation.coords.longitude, // Direct access to longitude
         latitudeDelta: 0.0922,
         longitudeDelta: 0.0421,
       });
@@ -380,8 +360,8 @@ export default function Index() {
         showsUserLocation={true}
         showsPointsOfInterest={false}
         initialRegion={{
-          latitude: myLocation?.latitude || 48.8566, // Use myLocation
-          longitude: myLocation?.longitude || 2.3522, // Use myLocation
+          latitude: myLocation?.coords.latitude || 48.8566, // Use myLocation
+          longitude: myLocation?.coords.longitude || 2.3522, // Use myLocation
           latitudeDelta: 0.0922,
           longitudeDelta: 0.0421,
         }}

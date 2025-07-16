@@ -17,8 +17,9 @@ export class LocationTracker {
       console.error("📍 Permission de localisation refusée");
       return;
     }
-
-    // Evite de créer plusieurs subscriptions
+    useLocationStore.setState({
+      myLocation: await Location.getCurrentPositionAsync(),
+    });
     if (this.locationSubscription) {
       console.log("⚠️ Le suivi de localisation est déjà actif");
       return;
@@ -73,10 +74,6 @@ export class LocationTracker {
           )}, ${longitude.toFixed(6)}`
         );
       }
-      console.log("latitude: ", latitude, "longitude: ", longitude);
-      useLocationStore.setState({
-        myLocation: { latitude, longitude },
-      });
     } catch (err) {
       console.error(
         "❌ Exception lors de la mise à jour de la localisation :",
