@@ -201,7 +201,13 @@ export default function Index() {
             latitude: userLocation.latitude,
             longitude: userLocation.longitude,
           }}
-		  pinColor="blue"
+          title={isAlert ? `🚨 ${userName}` : userName}
+          description={
+            isAlert
+              ? `EN ALERTE! (${timeDisplay})`
+              : `En ligne (${timeDisplay})`
+          }
+          pinColor={isAlert ? "#FF0000" : "#FFA500"}
         />
       );
     });
