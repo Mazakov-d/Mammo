@@ -2,7 +2,6 @@ export interface UserLocation {
   user_id: string; // UUID de l'utilisateur
   latitude: number; // Latitude GPS
   longitude: number; // Longitude GPS
-  is_alert: boolean; // Indique si l'utilisateur est en alerte
   updated_at: string; // Dernière mise à jour (ISO timestamp)
   created_at?: string; // Date de création (ISO timestamp)
   
@@ -24,7 +23,6 @@ export interface UserLocation {
 export interface LocationUpdate {
   latitude: number;
   longitude: number;
-  is_alert?: boolean;
 }
 
 // Type pour les filtres de recherche

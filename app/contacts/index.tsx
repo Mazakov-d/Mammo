@@ -175,7 +175,7 @@ export default function UsersScreen() {
     ).toISOString();
     const { data: locations, error: locationsError } = await supabase
       .from("user_locations")
-      .select("user_id, is_alert, updated_at")
+      .select("user_id, updated_at")
       .in("user_id", friendIds)
       .gte("updated_at", thirtyMinutesAgo);
 
@@ -193,7 +193,6 @@ export default function UsersScreen() {
           avatar_url: profile.avatar_url,
           isOnline,
           lastSeen: location?.updated_at,
-          isAlert: location?.is_alert || false,
           type: "friend",
         };
       }) || [];
