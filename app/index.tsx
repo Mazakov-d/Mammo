@@ -206,9 +206,6 @@ export default function Index() {
       const minutesAgo = Math.floor((Date.now() - lastSeen.getTime()) / 60000);
 
 		if (Math.floor(minutesAgo / 60) >= 24) {
-			console.warn(
-				`User ${userName} has not been seen for more than 24 hours, skipping marker`
-			);
 			return null;
 		}
 

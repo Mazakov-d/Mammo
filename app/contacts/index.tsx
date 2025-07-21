@@ -44,42 +44,6 @@ export default function UsersScreen() {
   const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
-    setLoading(true);
-    loadAllRelationships();
-
-    // Subscribe to relationships changes
-    const relationshipsSubscription = supabase
-      .channel("relationships_changes")
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "contacts",
-        },
-        () => {
-          loadAllRelationships();
-        }
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "user_locations",
-        },
-        () => {
-          loadAllRelationships();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      relationshipsSubscription.unsubscribe();
-    };
-  }, [session?.user?.id]);
-
-  useEffect(() => {
     // Filter all sections based on search query
     if (searchQuery.trim() === "") {
       setFilteredSections(sections);
