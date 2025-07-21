@@ -190,6 +190,13 @@ export default function Index() {
 		const lastSeen = new Date(userLocation.updated_at);
 		const minutesAgo = Math.floor((Date.now() - lastSeen.getTime()) / 60000);
 
+		if (Math.floor(minutesAgo / 60) >= 24) {
+			console.warn(
+				`User ${userName} has not been seen for more than 24 hours, skipping marker`
+			);
+			return null;
+		}
+
 		let timeDisplay;
 		if (minutesAgo < 1) timeDisplay = "à l'instant";
 		else if (minutesAgo < 60) timeDisplay = `il y a ${minutesAgo}min`;
