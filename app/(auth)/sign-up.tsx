@@ -70,7 +70,10 @@ const handleSignUp = async () => {
       }
     });
 
-    if (signUpError) throw signUpError;
+    if (signUpError) {
+	console.log(signUpError);
+	 throw signUpError;
+	}	
 
     if (!data?.user) {
       throw new Error("Échec de la création du compte utilisateur");

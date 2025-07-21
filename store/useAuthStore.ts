@@ -8,6 +8,7 @@ interface AuthStore {
   profile: Profile | null
   isLoading: boolean
   initialize: () => Promise<void>
+  updateProfile: (updates: Partial<Profile>) => Promise<{ success: boolean; error?: string }>
 }
 
 export const useAuthStore = create<AuthStore>((set, get) => ({
@@ -41,9 +42,52 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
         set({ profile: data?.[0] || null })
       }
     }
+  },
+
+  updateProfile: async (updates: Partial<Profile>) => {
+    const { session, profile } = get()
+    
+    // Check if user is authenticated
+    if (!session?.user?.id) {
+      return { success: false, error: 'User not authenticated' }
+    }
+
+    // Check if we have a current profile
+    if (!profile) {
+      return { success: false, error: 'No profile found' }
+    }
+
+    try {
+      // Remove id, created_at from updates to prevent conflicts
+      const { id, created_at, ...safeUpdates } = updates
+      
+      // Add updated_at timestamp
+      const updatedData = {
+        ...safeUpdates,
+      }
+
+      // Update in Supabase
+      const { data, error } = await supabase
+        .from("profiles")
+        .update(updatedData)
+        .eq("id", session.user.id)
+        .select("*")
+        .single()
+
+      if (error) {
+        console.error('Profile update error:', error)
+        return { success: false, error: error.message }
+      }
+
+      // Update local state with the returned data
+      set({ profile: data })
+      
+      console.log('Profile updated successfully:', data)
+      return { success: true }
+
+    } catch (error: any) {
+      console.error('Profile update error:', error)
+      return { success: false, error: error.message || 'Failed to update profile' }
+    }
   }
-
-//   updateProfile: async () => {
-
-//   }
 }))
