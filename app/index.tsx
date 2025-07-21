@@ -1,12 +1,6 @@
 // app/index.tsx - Updated with friends system
 
-import React, {
-  useRef,
-  useMemo,
-  useCallback,
-  useState,
-  useEffect,
-} from "react";
+import React, { useRef, useCallback, useState, useEffect } from "react";
 import {
   Text,
   View,
@@ -30,17 +24,16 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAlertsStore } from "../store/useAlertsStore";
 import { useLocationStore } from "../store/useUserLocationsStore";
 import { locationTracker } from "@/lib/locationTracker";
-import { useContactsStore } from "@/store/useContactsStore";
 import { useInitContacts } from "@/hooks/useInitContacts";
 
 export default function Index() {
   const router = useRouter();
   const session = useAuthStore.getState().session;
+
   if (!session) {
     return <Redirect href="./(auth)/sign-in" />;
   }
-  const { alerts, isLoading, error, fetchAlerts, subscribeAlerts } =
-    useAlertsStore();
+  const { alerts, fetchAlerts, subscribeAlerts } = useAlertsStore();
   const insets = useSafeAreaInsets();
 
   const {
@@ -76,14 +69,8 @@ export default function Index() {
   }, []);
 
   useEffect(() => {
-    if (!session || !alerts) return;
-    setOnAlert(
-      alerts.some(
-        (alert) =>
-          alert.creator_id === session.user.id && alert.status === "active"
-      )
-    );
-  }, [alerts, session.user.id]);
+    setOnAlert(useAuthStore.getState().profile?.alert_group_id ? true : false);
+  }, [useAuthStore.getState().profile?.alert_group_id]);
 
   const handlePresentModalPress = useCallback(() => {
     setBSConfirmAlertMounted(true);
@@ -98,29 +85,56 @@ export default function Index() {
   }, []);
 
   const createAlertDB = async () => {
-    const { data, error } = await supabase.from("alerts").insert([
-      {
-        creator_id: session.user.id,
-      },
-    ]);
+    const { data: alertData, error: alertError } = await supabase
+      .from("alerts")
+      .insert([
+        {
+          creator_id: session.user.id,
+        },
+      ])
+      .select();
 
-    if (error) {
-      console.error("Error creating alert:", error.message);
+    if (alertError) {
+      console.error("Error creating alert:", alertError.message);
       return null;
     }
 
-    return data ? data[0] : null;
+    const { error: profileError } = await useAuthStore
+      .getState()
+      .updateProfile({
+        alert_group_id: alertData ? alertData[0].id : null,
+      });
+
+    if (profileError) {
+      console.error("Error creating alert:", profileError);
+      return null;
+    }
+
+    console.log(alertData ? [0] : null);
+
+    return alertData ? alertData[0] : null;
   };
 
   const archiveAlertDB = async () => {
-    const { data, error } = await supabase
+    const { data, error: alertsError } = await supabase
       .from("alerts")
       .update({ status: "archived" })
       .eq("creator_id", session.user.id)
       .select(); // optional: to get the updated row
 
-    if (error) {
-      console.error("Failed to update alert status:", error.message);
+    if (alertsError) {
+      console.error("Failed to update alert status:", alertsError.message);
+      return null;
+    }
+
+    const { error: profileError } = await useAuthStore
+      .getState()
+      .updateProfile({
+        alert_group_id: null,
+      });
+
+    if (profileError) {
+      console.error("Error creating alert:", profileError);
       return null;
     }
 
@@ -313,9 +327,9 @@ export default function Index() {
     return markers;
   }, [userLocations, alerts, session?.user?.id]);
 
-  const handleSignOut = async () => {
-    supabase.auth.signOut();
-  };
+  //   const handleSignOut = async () => {
+  //     supabase.auth.signOut();
+  //   };
 
   return (
     <View style={styles.container}>
@@ -358,10 +372,16 @@ export default function Index() {
                         size={24}
                         color="white"
                       />
-                      {(alerts.filter((alert) => alert.creator_id != session.user.id)).length > 0 && (
+                      {alerts.filter(
+                        (alert) => alert.creator_id != session.user.id
+                      ).length > 0 && (
                         <View style={styles.alertBadge}>
                           <Text style={styles.alertBadgeText}>
-                            {(alerts.filter((alert) => alert.creator_id != session.user.id)).length}
+                            {
+                              alerts.filter(
+                                (alert) => alert.creator_id != session.user.id
+                              ).length
+                            }
                           </Text>
                         </View>
                       )}

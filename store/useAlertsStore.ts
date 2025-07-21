@@ -4,7 +4,6 @@ import { supabase } from "../lib/supabase";
 import { Alert } from "../types/Alert";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { Profile } from "@/types/Profile";
-import { useAuthStore } from "./useAuthStore";
 
 interface AlertsState {
   alerts: Alert[];
@@ -34,7 +33,8 @@ export const useAlertsStore = create<AlertsState>((set, get) => ({
           first_name,
           last_name,
           avatar_url,
-          updated_at
+          updated_at,
+          alert_group_id
         )
       `
       )

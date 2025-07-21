@@ -7,4 +7,5 @@ export interface Profile {
   first_name: string; // First name of the user
   last_name: string; // Last name of the user
   updated_at: string; // Last update timestamp with time zone
+  alert_group_id: string | null;
 }

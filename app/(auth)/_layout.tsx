@@ -1,10 +1,10 @@
 import { View, Text } from "react-native";
 import React from "react";
 import { Redirect, Stack } from "expo-router";
-import { useAuth } from "@/provider/AuthProvider";
+import { useAuthStore } from "@/store/useAuthStore";
 
 export default function AuthLayout() {
-  const { session } = useAuth();
+  const { session } = useAuthStore();
   if (session) {
     return <Redirect href="/" />;
   }
