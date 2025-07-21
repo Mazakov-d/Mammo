@@ -18,20 +18,13 @@ import { AntDesign, Feather, MaterialIcons } from "@expo/vector-icons";
 import { Colors } from "@/constants/Colors";
 import { supabase } from "@/lib/supabase";
 import { useAuthStore } from "@/store/useAuthStore";
-
-interface Person {
-  id: string;
-  full_name: string;
-  avatar_url?: string;
-  isOnline?: boolean;
-  lastSeen?: string;
-  isAlert?: boolean;
-  type: "friend" | "received" | "sent";
-}
+import { useContactsStore } from "@/store/useContactsStore";
+import { Contact } from "@/types/Contact";
+import { useAlertsStore } from "@/store/useAlertsStore";
 
 interface Section {
   title: string;
-  data: Person[];
+  data: Contact[];
 }
 
 export default function UsersScreen() {
@@ -40,8 +33,21 @@ export default function UsersScreen() {
   const [sections, setSections] = useState<Section[]>([]);
   const [filteredSections, setFilteredSections] = useState<Section[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
-  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const {
+    friends,
+    isLoading,
+    receivedInvitations,
+    sentInvitations,
+    fetchContacts,
+    acceptInvitation,
+    declineInvitation,
+    cancelInvitation,
+    deleteFriend,
+    
+  } = useContactsStore();
+
+  const { alerts } = useAlertsStore();
 
   useEffect(() => {
     // Filter all sections based on search query
@@ -51,8 +57,10 @@ export default function UsersScreen() {
       const filtered = sections
         .map((section) => ({
           ...section,
-          data: section.data.filter((person) =>
-            person.full_name.toLowerCase().includes(searchQuery.toLowerCase())
+          data: section.data.filter((contact) =>
+            contact.contactProfile.full_name
+              .toLowerCase()
+              .includes(searchQuery.toLowerCase())
           ),
         }))
         .filter((section) => section.data.length > 0);
@@ -61,317 +69,49 @@ export default function UsersScreen() {
     }
   }, [searchQuery, sections]);
 
-  const loadAllRelationships = async () => {
-    try {
+  useEffect(() => {
+  
+    fillSections();
+  }, [friends, receivedInvitations, sentInvitations]);
 
-      if (!session?.user?.id) return;
-
-      // Load friends (only search where user_id = current user)
-      const friends = await loadFriends();
-
-      // Load received invitations (where contact_id = current user and status = pending)
-      const receivedInvitations = await loadReceivedInvitations();
-
-      // Load sent invitations (where user_id = current user and status = pending)
-      const sentInvitations = await loadSentInvitations();
-
-      const newSections: Section[] = [];
-
-      if (friends.length > 0) {
-        newSections.push({
-          title: `Mes amis (${friends.length})`,
-          data: friends,
-        });
-      }
-
-      if (receivedInvitations.length > 0) {
-        newSections.push({
-          title: `Invitations reçues (${receivedInvitations.length})`,
-          data: receivedInvitations,
-        });
-      }
-
-      if (sentInvitations.length > 0) {
-        newSections.push({
-          title: `Invitations envoyées (${sentInvitations.length})`,
-          data: sentInvitations,
-        });
-      }
-
-      setSections(newSections);
-      setFilteredSections(newSections);
-    } catch (error) {
-      console.error("Failed to load relationships:", error);
-      Alert.alert("Erreur", "Impossible de charger les relations");
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
+  const fillSections = async () => {
+    const newSections: Section[] = [];
+    if (friends.length > 0) {
+      newSections.push({
+        title: `Mes amis (${friends.length})`,
+        data: friends,
+      });
     }
-  };
 
-  const loadFriends = async (): Promise<Person[]> => {
-    if (!session?.user?.id) return [];
-
-    // Get accepted contacts where current user is user_id
-    const { data: contacts, error: contactsError } = await supabase
-      .from("contacts")
-      .select("contact_id")
-      .eq("user_id", session.user.id)
-      .eq("status", "accepted");
-
-    if (contactsError) throw contactsError;
-
-    const friendIds = contacts?.map((contact) => contact.contact_id) || [];
-
-    if (friendIds.length === 0) return [];
-
-    // Get friend profiles
-    const { data: profiles, error: profilesError } = await supabase
-      .from("profiles")
-      .select("*")
-      .in("id", friendIds);
-
-    if (profilesError) throw profilesError;
-
-    // Get online status from user_locations
-    const thirtyMinutesAgo = new Date(
-      Date.now() - 30 * 60 * 1000
-    ).toISOString();
-    const { data: locations, error: locationsError } = await supabase
-      .from("user_locations")
-      .select("user_id, updated_at")
-      .in("user_id", friendIds)
-      .gte("updated_at", thirtyMinutesAgo);
-
-    if (locationsError) throw locationsError;
-
-    // Combine data
-    const friendsData: Person[] =
-      profiles?.map((profile) => {
-        const location = locations?.find((loc) => loc.user_id === profile.id);
-        const isOnline = !!location;
-
-        return {
-          id: profile.id,
-          full_name: profile.full_name || "Sans nom",
-          avatar_url: profile.avatar_url,
-          isOnline,
-          lastSeen: location?.updated_at,
-          type: "friend",
-        };
-      }) || [];
-
-    // Sort: alerts first, then online, then offline
-    friendsData.sort((a, b) => {
-      if (a.isAlert && !b.isAlert) return -1;
-      if (!a.isAlert && b.isAlert) return 1;
-      if (a.isOnline && !b.isOnline) return -1;
-      if (!a.isOnline && b.isOnline) return 1;
-      return 0;
-    });
-
-    return friendsData;
-  };
-
-  const loadReceivedInvitations = async (): Promise<Person[]> => {
-    if (!session?.user?.id) return [];
-
-    try {
-      // Get pending invitations where current user is contact_id
-      const { data: invitations, error: invitationsError } = await supabase
-        .from("contacts")
-        .select("user_id")
-        .eq("contact_id", session.user.id)
-        .eq("status", "pending");
-
-      if (invitationsError) {
-        console.error("Error fetching invitations:", invitationsError);
-        throw invitationsError;
-      }
-
-      if (!invitations || invitations.length === 0) return [];
-
-      // Get profiles for the users who sent invitations
-      const userIds = invitations.map((inv) => inv.user_id);
-      const { data: profiles, error: profilesError } = await supabase
-        .from("profiles")
-        .select("id, full_name, avatar_url")
-        .in("id", userIds);
-
-      if (profilesError) {
-        console.error("Error fetching profiles:", profilesError);
-        throw profilesError;
-      }
-
-      return (
-        profiles?.map((profile) => ({
-          id: profile.id,
-          full_name: profile.full_name || "Sans nom",
-          avatar_url: profile.avatar_url,
-          type: "received" as const,
-        })) || []
-      );
-    } catch (error) {
-      console.error("Error loading received invitations:", error);
-      return [];
+    if (receivedInvitations.length > 0) {
+      newSections.push({
+        title: `Invitations reçues (${receivedInvitations.length})`,
+        data: receivedInvitations,
+      });
     }
-  };
 
-  const loadSentInvitations = async (): Promise<Person[]> => {
-    if (!session?.user?.id) return [];
-
-    try {
-      // Get pending invitations where current user is user_id
-      const { data: invitations, error: invitationsError } = await supabase
-        .from("contacts")
-        .select("contact_id")
-        .eq("user_id", session.user.id)
-        .eq("status", "pending");
-
-      if (invitationsError) {
-        console.error("Error fetching sent invitations:", invitationsError);
-        throw invitationsError;
-      }
-
-      if (!invitations || invitations.length === 0) return [];
-
-      // Get profiles for the users who received invitations
-      const contactIds = invitations.map((inv) => inv.contact_id);
-      const { data: profiles, error: profilesError } = await supabase
-        .from("profiles")
-        .select("id, full_name, avatar_url")
-        .in("id", contactIds);
-
-      if (profilesError) {
-        console.error("Error fetching contact profiles:", profilesError);
-        throw profilesError;
-      }
-
-      return (
-        profiles?.map((profile) => ({
-          id: profile.id,
-          full_name: profile.full_name || "Sans nom",
-          avatar_url: profile.avatar_url,
-          type: "sent" as const,
-        })) || []
-      );
-    } catch (error) {
-      console.error("Error loading sent invitations:", error);
-      return [];
+    if (sentInvitations.length > 0) {
+      newSections.push({
+        title: `Invitations envoyées (${sentInvitations.length})`,
+        data: sentInvitations,
+      });
     }
+
+    setSections(newSections);
+    setFilteredSections(newSections);
   };
 
   const onRefresh = () => {
     setRefreshing(true);
-    loadAllRelationships();
+    fetchContacts().then(() => {
+      setRefreshing(false);
+    });
   };
 
-  const calculateTimeAgo = (timestamp: string) => {
-    const lastSeen = new Date(timestamp);
-    const minutesAgo = Math.floor((Date.now() - lastSeen.getTime()) / 60000);
-
-    if (minutesAgo < 1) return "En ligne";
-    else if (minutesAgo < 60) return `Vu il y a ${minutesAgo} min`;
-    else if (minutesAgo < 1440)
-      return `Vu il y a ${Math.floor(minutesAgo / 60)}h`;
-    else return `Vu il y a ${Math.floor(minutesAgo / 1440)}j`;
-  };
-
-  const acceptInvitation = async (personId: string) => {
-    if (!session?.user?.id) return;
-
-    try {
-      // Update the request to accepted (trigger will create bidirectional relationship)
-      const { error } = await supabase
-        .from("contacts")
-        .update({ status: "accepted" })
-        .eq("user_id", personId)
-        .eq("contact_id", session.user.id);
-
-      if (error) throw error;
-
-      Alert.alert("Succès", "Invitation acceptée !");
-      loadAllRelationships();
-    } catch (error) {
-      console.error("Error accepting invitation:", error);
-      Alert.alert("Erreur", "Impossible d'accepter l'invitation");
-    }
-  };
-
-  const declineInvitation = async (personId: string) => {
-    if (!session?.user?.id) return;
-
-    try {
-      // Delete the invitation
-      const { error } = await supabase
-        .from("contacts")
-        .delete()
-        .eq("user_id", personId)
-        .eq("contact_id", session.user.id)
-        .eq("status", "pending");
-
-      if (error) throw error;
-
-      Alert.alert("Succès", "Invitation refusée");
-      loadAllRelationships();
-    } catch (error) {
-      console.error("Error declining invitation:", error);
-      Alert.alert("Erreur", "Impossible de refuser l'invitation");
-    }
-  };
-
-  const cancelInvitation = async (personId: string) => {
-    if (!session?.user?.id) return;
-
-    try {
-      // Delete the sent invitation
-      const { error } = await supabase
-        .from("contacts")
-        .delete()
-        .eq("user_id", session.user.id)
-        .eq("contact_id", personId)
-        .eq("status", "pending");
-
-      if (error) throw error;
-
-      Alert.alert("Succès", "Invitation annulée");
-      loadAllRelationships();
-    } catch (error) {
-      console.error("Error canceling invitation:", error);
-      Alert.alert("Erreur", "Impossible d'annuler l'invitation");
-    }
-  };
-
-  const deleteFriend = async (friendId: string) => {
-    if (!session?.user?.id) return;
-
-    try {
-      // Use the safe deletion function
-      const { data, error } = await supabase.rpc("delete_friendship_safe", {
-        p_user_id: session.user.id,
-        p_contact_id: friendId,
-      });
-
-      if (error) {
-        console.error("Safe delete function failed:", error);
-        throw error;
-      }
-
-      const deletedCount = data?.[0]?.deleted_count || 0;
-      console.log(`Deleted ${deletedCount} friendship records`);
-
-      Alert.alert("Succès", "Ami supprimé");
-      loadAllRelationships();
-    } catch (error) {
-      console.error("Failed to delete friend:", error);
-      Alert.alert("Erreur", "Impossible de supprimer cet ami");
-    }
-  };
-
-  const confirmDeleteFriend = (person: Person) => {
+  const confirmDeleteFriend = (contact: Contact) => {
     Alert.alert(
       "Supprimer cet ami ?",
-      `Êtes-vous sûr de vouloir supprimer ${person.full_name} de vos amis ?`,
+      `Êtes-vous sûr de vouloir supprimer ${contact.contactProfile.full_name} de vos amis ?`,
       [
         {
           text: "Annuler",
@@ -380,16 +120,16 @@ export default function UsersScreen() {
         {
           text: "Supprimer",
           style: "destructive",
-          onPress: () => deleteFriend(person.id),
+          onPress: () => deleteFriend(contact.contactProfile.id),
         },
       ]
     );
   };
 
-  const confirmDeclineInvitation = (person: Person) => {
+  const confirmDeclineInvitation = (contact: Contact) => {
     Alert.alert(
       "Refuser cette invitation ?",
-      `Êtes-vous sûr de vouloir refuser l'invitation de ${person.full_name} ?`,
+      `Êtes-vous sûr de vouloir refuser l'invitation de ${contact.contactProfile.full_name} ?`,
       [
         {
           text: "Annuler",
@@ -398,16 +138,16 @@ export default function UsersScreen() {
         {
           text: "Refuser",
           style: "destructive",
-          onPress: () => declineInvitation(person.id),
+          onPress: () => declineInvitation(contact.contactProfile.id),
         },
       ]
     );
   };
 
-  const confirmCancelInvitation = (person: Person) => {
+  const confirmCancelInvitation = (contact: Contact) => {
     Alert.alert(
       "Annuler cette invitation ?",
-      `Êtes-vous sûr de vouloir annuler votre invitation à ${person.full_name} ?`,
+      `Êtes-vous sûr de vouloir annuler votre invitation à ${contact.contactProfile.full_name} ?`,
       [
         {
           text: "Non",
@@ -416,19 +156,28 @@ export default function UsersScreen() {
         {
           text: "Oui, annuler",
           style: "destructive",
-          onPress: () => cancelInvitation(person.id),
+          onPress: () => cancelInvitation(contact.contactProfile.id),
         },
       ]
     );
   };
 
-  const renderPerson = ({ item }: { item: Person }) => {
+  const renderContact = ({ item }: { item: Contact }) => {
+    const contact = item;
+    const isUserOnAlert = alerts.some(
+      (alert) => alert.creator_id === contact.contact_id
+    );
+    const sentInvitation =
+      contact.status === "pending" && contact.user_id === session?.user.id;
+    const receivedInvitation =
+      contact.status === "pending" && contact.contact_id === session?.user.id;
+
     const renderActionButtons = () => {
-      switch (item.type) {
-        case "friend":
+      switch (contact.status) {
+        case "accepted":
           return (
             <TouchableOpacity
-              onPress={() => confirmDeleteFriend(item)}
+              onPress={() => confirmDeleteFriend(contact)}
               style={styles.deleteButton}
             >
               <MaterialIcons name="more-vert" size={24} color="#ccc" />
@@ -443,14 +192,14 @@ export default function UsersScreen() {
                   styles.actionButton,
                   { backgroundColor: "#4CAF50", marginRight: 8 },
                 ]}
-                onPress={() => acceptInvitation(item.id)}
+                onPress={() => acceptInvitation(contact.contactProfile.id)}
               >
                 <MaterialIcons name="check" size={20} color="white" />
                 <Text style={styles.actionButtonText}>Accepter</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.actionButton, { backgroundColor: "#f44336" }]}
-                onPress={() => confirmDeclineInvitation(item)}
+                onPress={() => confirmDeclineInvitation(contact)}
               >
                 <MaterialIcons name="close" size={20} color="white" />
                 <Text style={styles.actionButtonText}>Refuser</Text>
@@ -462,7 +211,7 @@ export default function UsersScreen() {
           return (
             <TouchableOpacity
               style={[styles.actionButton, { backgroundColor: "#ff9800" }]}
-              onPress={() => confirmCancelInvitation(item)}
+              onPress={() => confirmCancelInvitation(contact)}
             >
               <MaterialIcons name="cancel" size={20} color="white" />
               <Text style={styles.actionButtonText}>Annuler</Text>
@@ -475,16 +224,13 @@ export default function UsersScreen() {
     };
 
     const renderStatusInfo = () => {
-      if (item.type === "friend") {
-        const statusText = item.isOnline
-          ? item.lastSeen
-            ? calculateTimeAgo(item.lastSeen)
-            : "En ligne"
-          : "Hors ligne";
-
+      if (contact.status === "accepted") {
+        const isUserOnAlert = alerts.some(
+          (alert) => alert.creator_id === contact.contact_id
+        );
         return (
           <View style={styles.statusContainer}>
-            {item.isAlert && (
+            {isUserOnAlert && (
               <AntDesign
                 name="warning"
                 size={14}
@@ -495,20 +241,20 @@ export default function UsersScreen() {
             <Text
               style={[
                 styles.friendStatus,
-                { color: item.isAlert ? Colors.red : "#666" },
+                { color: isUserOnAlert ? Colors.red : "#666" },
               ]}
             >
-              {item.isAlert ? "En alerte!" : statusText}
+              {isUserOnAlert && "En alerte!"}
             </Text>
           </View>
         );
-      } else if (item.type === "received") {
+      } else if (sentInvitation) {
         return (
           <Text style={styles.invitationText}>
             Vous a envoyé une invitation
           </Text>
         );
-      } else if (item.type === "sent") {
+      } else if (receivedInvitation) {
         return <Text style={styles.pendingText}>En attente de réponse</Text>;
       }
       return null;
@@ -516,40 +262,41 @@ export default function UsersScreen() {
 
     return (
       <TouchableOpacity
-        style={styles.personItem}
+        style={styles.contactItem}
         activeOpacity={0.7}
         onLongPress={
-          item.type === "friend" ? () => confirmDeleteFriend(item) : undefined
+          contact.status === "accepted"
+            ? () => confirmDeleteFriend(contact)
+            : undefined
         }
       >
         <View style={styles.avatarContainer}>
-          {item.avatar_url ? (
-            <Image source={{ uri: item.avatar_url }} style={styles.avatar} />
+          {contact.contactProfile.avatar_url ? (
+            <Image
+              source={{ uri: contact.contactProfile.avatar_url }}
+              style={styles.avatar}
+            />
           ) : (
             <View style={[styles.avatar, styles.defaultAvatar]}>
               <Text style={styles.avatarText}>
-                {item.full_name.charAt(0).toUpperCase()}
+                {contact.contactProfile.full_name.charAt(0).toUpperCase()}
               </Text>
             </View>
           )}
-          {item.type === "friend" && (
+          {contact.status === "accepted" && (
             <View
               style={[
                 styles.onlineIndicator,
                 {
-                  backgroundColor: item.isAlert
-                    ? Colors.red
-                    : item.isOnline
-                    ? "#4CAF50"
-                    : "#9E9E9E",
+                  backgroundColor: isUserOnAlert ? Colors.red : undefined,
                 },
               ]}
             />
           )}
         </View>
 
-        <View style={styles.personInfo}>
-          <Text style={styles.personName}>{item.full_name}</Text>
+        <View style={styles.contactInfo}>
+          <Text style={styles.contactName}>{contact.contactProfile.full_name}</Text>
           {renderStatusInfo()}
         </View>
 
@@ -628,7 +375,6 @@ export default function UsersScreen() {
       </TouchableOpacity>
     </View>
   );
-  
 
   return (
     <View style={styles.container}>
@@ -656,23 +402,17 @@ export default function UsersScreen() {
         }}
       />
 
-      {loading ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={Colors.orange} />
-        </View>
-      ) :
-
-      filteredSections.length === 0 && searchQuery === "" ? (
+      {filteredSections.length === 0 && searchQuery === "" ? (
         renderEmpty()
       ) : (
         <SafeAreaView style={{ flex: 1 }}>
           {renderHeader()}
-        
+
           <SectionList
             sections={filteredSections}
-            renderItem={renderPerson}
+            renderItem={renderContact}
             renderSectionHeader={renderSectionHeader}
-            keyExtractor={(item) => item.id}
+            keyExtractor={(contact) => contact.contact_id}
             contentContainerStyle={styles.listContent}
             showsVerticalScrollIndicator={false}
             refreshControl={
@@ -771,7 +511,7 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     color: Colors.primary,
   },
-  personItem: {
+  contactItem: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "white",
@@ -814,10 +554,10 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: "white",
   },
-  personInfo: {
+  contactInfo: {
     flex: 1,
   },
-  personName: {
+  contactName: {
     fontSize: 16,
     fontWeight: "600",
     color: Colors.primary,

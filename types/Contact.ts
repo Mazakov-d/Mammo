@@ -6,5 +6,5 @@ export interface Contact {
   created_at: string; // timestampz
   updated_at: string; // timestampz
   status: string; // e.g. 'pending', 'accepted'
-  profiles?: Profile; // Optional profile information of the contact
+  contactProfile: Profile; // Optional profile information of the contact
 }

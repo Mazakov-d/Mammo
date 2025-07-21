@@ -15,6 +15,7 @@ import { AntDesign, Feather, MaterialIcons } from "@expo/vector-icons";
 import { Colors } from "@/constants/Colors";
 import { supabase } from "@/lib/supabase";
 import { useAuthStore} from "@/store/useAuthStore";
+import { useContactsStore } from "@/store/useContactsStore";
 
 interface Profile {
   id: string;
@@ -29,6 +30,7 @@ export default function AddFriendsScreen() {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(false);
+  const { friends, sentInvitations, receivedInvitations, sendInvitation, acceptInvitation, declineInvitation } = useContactsStore();
 
   useEffect(() => {
     const delaySearch = setTimeout(() => {
@@ -43,151 +45,47 @@ export default function AddFriendsScreen() {
   }, [searchQuery]);
 
   const searchProfiles = async () => {
-    if (!session?.user?.id) return;
-    
-    setLoading(true);
-    try {
-      // Search for profiles
-      const { data: profiles, error: profilesError } = await supabase
-        .from('profiles')
-        .select('*')
-        .ilike('full_name', `%${searchQuery}%`)
-        .neq('id', session.user.id)
-        .limit(20);
+  if (!session?.user?.id) return;
 
-      if (profilesError) throw profilesError;
+  setLoading(true);
+  try {
+    // 1) Recherche des profils
+    const { data: profiles, error: profilesError } = await supabase
+      .from('profiles')
+      .select('*')
+      .ilike('full_name', `%${searchQuery}%`)
+      .neq('id', session.user.id)
+      .limit(20);
 
-      if (!profiles || profiles.length === 0) {
-        setSearchResults([]);
-        return;
+    if (profilesError) throw profilesError;
+    if (!profiles || profiles.length === 0) {
+      setSearchResults([]);
+      return;
+    }
+
+    // 3) On détermine le statut pour chaque profil
+    const results: Profile[] = profiles.map(profile => {
+      let relationshipStatus: 'none' | 'friend' | 'sent' | 'received' = 'none';
+
+      if (friends.some(c => c.contact_id === profile.id)) {
+        relationshipStatus = 'friend';
+      } else if (sentInvitations.some(c => c.contact_id === profile.id)) {
+        relationshipStatus = 'sent';
+      } else if (receivedInvitations.some(c => c.user_id === profile.id)) {
+        relationshipStatus = 'received';
       }
 
-      const profileIds = profiles.map(p => p.id);
+      return { ...profile, relationshipStatus };
+    });
 
-      // Get all existing relationships for current user
-      const { data: relationships, error: relationshipsError } = await supabase
-        .from('contacts')
-        .select('*')
-        .eq('user_id', session.user.id)
-        .in('contact_id', profileIds);
-
-      if (relationshipsError) throw relationshipsError;
-
-      // Get relationships where current user is the contact (received invitations)
-      const { data: receivedRelationships, error: receivedError } = await supabase
-        .from('contacts')
-        .select('*')
-        .eq('contact_id', session.user.id)
-        .in('user_id', profileIds);
-
-      if (receivedError) throw receivedError;
-
-      // Map relationship status
-      const results = profiles.map(profile => {
-        // Check if user sent invitation to this profile
-        const sentRelationship = relationships?.find(r => r.contact_id === profile.id);
-        // Check if this profile sent invitation to user
-        const receivedRelationship = receivedRelationships?.find(r => r.user_id === profile.id);
-
-        let relationshipStatus: 'none' | 'friend' | 'sent' | 'received' = 'none';
-
-        if (sentRelationship) {
-          if (sentRelationship.status === 'accepted') {
-            relationshipStatus = 'friend';
-          } else if (sentRelationship.status === 'pending') {
-            relationshipStatus = 'sent';
-          }
-        } else if (receivedRelationship) {
-          if (receivedRelationship.status === 'pending') {
-            relationshipStatus = 'received';
-          }
-        }
-
-        return {
-          ...profile,
-          relationshipStatus
-        };
-      });
-
-      setSearchResults(results);
-    } catch (error) {
-      console.error('Search error:', error);
-      Alert.alert('Erreur', 'Impossible de rechercher des utilisateurs');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const sendFriendRequest = async (friendId: string) => {
-    if (!session?.user?.id) return;
-
-    try {
-      const { error } = await supabase
-        .from('contacts')
-        .insert({
-          user_id: session.user.id,
-          contact_id: friendId,
-          status: 'pending'
-        });
-
-      if (error) throw error;
-
-      Alert.alert('Succès', 'Demande d\'ami envoyée !');
-      
-      // Refresh search results
-      searchProfiles();
-    } catch (error) {
-      console.error('Error sending friend request:', error);
-      Alert.alert('Erreur', 'Impossible d\'envoyer la demande');
-    }
-  };
-
-  const acceptFriendRequest = async (friendId: string) => {
-    if (!session?.user?.id) return;
-
-    try {
-      // Update the request to accepted (trigger will create bidirectional relationship)
-      const { error } = await supabase
-        .from('contacts')
-        .update({ status: 'accepted' })
-        .eq('user_id', friendId)
-        .eq('contact_id', session.user.id);
-
-      if (error) throw error;
-
-      Alert.alert('Succès', 'Demande d\'ami acceptée !');
-      
-      // Refresh search results
-      searchProfiles();
-    } catch (error) {
-      console.error('Error accepting friend request:', error);
-      Alert.alert('Erreur', 'Impossible d\'accepter la demande');
-    }
-  };
-
-  const declineFriendRequest = async (friendId: string) => {
-    if (!session?.user?.id) return;
-
-    try {
-      // Delete the friend request
-      const { error } = await supabase
-        .from('contacts')
-        .delete()
-        .eq('user_id', friendId)
-        .eq('contact_id', session.user.id)
-        .eq('status', 'pending');
-
-      if (error) throw error;
-
-      Alert.alert('Succès', 'Demande d\'ami refusée');
-      
-      // Refresh search results
-      searchProfiles();
-    } catch (error) {
-      console.error('Error declining friend request:', error);
-      Alert.alert('Erreur', 'Impossible de refuser la demande');
-    }
-  };
+    setSearchResults(results);
+  } catch (error) {
+    console.error('Search error:', error);
+    Alert.alert('Erreur', "Impossible de rechercher des utilisateurs");
+  } finally {
+    setLoading(false);
+  }
+};
 
   const renderProfile = ({ item }: { item: Profile }) => {
     const renderButton = () => {
@@ -213,13 +111,13 @@ export default function AddFriendsScreen() {
             <View style={styles.buttonGroup}>
               <TouchableOpacity
                 style={[styles.actionButton, { backgroundColor: '#4CAF50', marginRight: 8 }]}
-                onPress={() => acceptFriendRequest(item.id)}
+                onPress={() => acceptInvitation(item.id)}
               >
                 <MaterialIcons name="check" size={16} color="white" />
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.actionButton, { backgroundColor: '#f44336' }]}
-                onPress={() => declineFriendRequest(item.id)}
+                onPress={() => declineInvitation(item.id)}
               >
                 <MaterialIcons name="close" size={16} color="white" />
               </TouchableOpacity>
@@ -230,7 +128,10 @@ export default function AddFriendsScreen() {
           return (
             <TouchableOpacity
               style={styles.actionButton}
-              onPress={() => sendFriendRequest(item.id)}
+              onPress={() => {
+                sendInvitation(item.id);
+                searchProfiles();
+              }}
             >
               <AntDesign name="adduser" size={20} color="white" />
               <Text style={styles.actionButtonText}>Ajouter</Text>

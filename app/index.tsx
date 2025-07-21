@@ -30,6 +30,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAlertsStore } from "../store/useAlertsStore";
 import { useLocationStore } from "../store/useUserLocationsStore";
 import { locationTracker } from "@/lib/locationTracker";
+import { useContactsStore } from "@/store/useContactsStore";
+import { useInitContacts } from "@/hooks/useInitContacts";
 
 export default function Index() {
   const router = useRouter();
@@ -47,7 +49,6 @@ export default function Index() {
     fetchVisibleLocations,
     subscribeToLocationChanges,
   } = useLocationStore();
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [onAlert, setOnAlert] = useState(false);
   const [BSConfirmAlertMounted, setBSConfirmAlertMounted] = useState(false);
   const [showStopSheet, setShowStopSheet] = useState(false);
@@ -55,6 +56,8 @@ export default function Index() {
   const bottomSheetModalRef = useRef<BottomSheetModal>(null);
   const stopSheetRef = useRef<BottomSheetModal>(null);
   const mapRef = useRef<MapView>(null);
+
+  useInitContacts();
 
   useEffect(() => {
     fetchVisibleLocations();
@@ -64,7 +67,7 @@ export default function Index() {
 
     const alertsSubscription = subscribeAlerts();
     const locationsSubscription = subscribeToLocationChanges();
-
+    
     return () => {
       locationTracker.stopTracking();
       alertsSubscription?.unsubscribe();
