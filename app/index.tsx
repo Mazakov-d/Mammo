@@ -1,11 +1,6 @@
 // app/index.tsx - Updated with friends system
 
-import React, {
-  useRef,
-  useCallback,
-  useState,
-  useEffect,
-} from "react";
+import React, { useRef, useCallback, useState, useEffect } from "react";
 import {
   Text,
   View,
@@ -29,15 +24,16 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAlertsStore } from "../store/useAlertsStore";
 import { useLocationStore } from "../store/useUserLocationsStore";
 import { locationTracker } from "@/lib/locationTracker";
+import { ActivityIndicator } from "react-native";
 
 export default function Index() {
   const router = useRouter();
   const session = useAuthStore.getState().session;
+
   if (!session) {
     return <Redirect href="./(auth)/sign-in" />;
   }
-  const { alerts, fetchAlerts, subscribeAlerts } =
-    useAlertsStore();
+  const { alerts, fetchAlerts, subscribeAlerts } = useAlertsStore();
   const insets = useSafeAreaInsets();
 
   const {
@@ -46,7 +42,7 @@ export default function Index() {
     fetchVisibleLocations,
     subscribeToLocationChanges,
   } = useLocationStore();
-//   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  //   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [onAlert, setOnAlert] = useState(false);
   const [BSConfirmAlertMounted, setBSConfirmAlertMounted] = useState(false);
   const [showStopSheet, setShowStopSheet] = useState(false);
@@ -72,9 +68,7 @@ export default function Index() {
   }, []);
 
   useEffect(() => {
-    setOnAlert(
-      useAuthStore.getState().profile?.alert_group_id ? true : false
-    );
+    setOnAlert(useAuthStore.getState().profile?.alert_group_id ? true : false);
   }, [useAuthStore.getState().profile?.alert_group_id]);
 
   const handlePresentModalPress = useCallback(() => {
@@ -332,9 +326,9 @@ export default function Index() {
     return markers;
   }, [userLocations, alerts, session?.user?.id]);
 
-//   const handleSignOut = async () => {
-//     supabase.auth.signOut();
-//   };
+  //   const handleSignOut = async () => {
+  //     supabase.auth.signOut();
+  //   };
 
   return (
     <View style={styles.container}>

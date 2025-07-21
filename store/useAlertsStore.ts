@@ -33,7 +33,8 @@ export const useAlertsStore = create<AlertsState>((set, get) => ({
           first_name,
           last_name,
           avatar_url,
-          updated_at
+          updated_at,
+          alert_group_id
         )
       `
       )
