@@ -17,7 +17,7 @@ import { Stack, useRouter } from "expo-router";
 import { AntDesign, Feather, MaterialIcons } from "@expo/vector-icons";
 import { Colors } from "@/constants/Colors";
 import { supabase } from "@/lib/supabase";
-import { useAuth } from "@/provider/AuthProvider";
+import { useAuthStore } from "@/store/useAuthStore";
 
 interface Person {
   id: string;
@@ -36,7 +36,7 @@ interface Section {
 
 export default function UsersScreen() {
   const router = useRouter();
-  const { session } = useAuth();
+  const session = useAuthStore.getState().session;
   const [sections, setSections] = useState<Section[]>([]);
   const [filteredSections, setFilteredSections] = useState<Section[]>([]);
   const [searchQuery, setSearchQuery] = useState("");

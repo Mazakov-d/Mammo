@@ -14,7 +14,7 @@ import { Stack, useRouter } from "expo-router";
 import { AntDesign, Feather, MaterialIcons } from "@expo/vector-icons";
 import { Colors } from "@/constants/Colors";
 import { supabase } from "@/lib/supabase";
-import { useAuth } from "@/provider/AuthProvider";
+import { useAuthStore} from "@/store/useAuthStore";
 
 interface Profile {
   id: string;
@@ -25,7 +25,7 @@ interface Profile {
 
 export default function AddFriendsScreen() {
   const router = useRouter();
-  const { session } = useAuth();
+  const session = useAuthStore.getState().session;
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(false);

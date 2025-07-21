@@ -22,12 +22,7 @@ export const useAlertsStore = create<AlertsState>((set, get) => ({
 
   fetchAlerts: async () => {
     set({ isLoading: true, error: null });
-    const session = useAuthStore.getState().session;
 
-    if (!session) {
-      console.log("User not authenticated");
-      return;
-    }
     const { data, error } = await supabase
       .from("alerts")
       .select(
@@ -44,7 +39,6 @@ export const useAlertsStore = create<AlertsState>((set, get) => ({
       `
       )
       .eq("status", "active")
-	//   .neq("id", session)
       .order("created_at", { ascending: false });
     console.log("Fetched alerts:", JSON.stringify(data, null, 2));
     if (error) set({ error: error.message });

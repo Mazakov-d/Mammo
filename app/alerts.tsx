@@ -5,10 +5,15 @@ import { Colors } from "@/constants/Colors";
 import { AntDesign, Feather } from "@expo/vector-icons";
 import { Alert } from "@/types/Alert";
 import { useAlertsStore } from "@/store/useAlertsStore";
+import { useAuthStore } from "@/store/useAuthStore"
 
 export default function AlertsScreen() {
   const router = useRouter();
   const { alerts } = useAlertsStore();
+  const session = useAuthStore.getState().session;
+
+  const otherAlerts = alerts.filter((alert) => alert.creator_id != session?.user.id);
+
 
   const calculateTimeAgo = (timestamp: string) => {
     const lastSeen = new Date(timestamp);
@@ -68,7 +73,7 @@ export default function AlertsScreen() {
         }}
       />
 
-      {alerts.length === 0 ? (
+      {otherAlerts.length === 0 ? (
         <View style={styles.noAlertsContainer}>
           <Image
             source={require("@/assets/images/mammo_no_alert.png")}
@@ -86,9 +91,9 @@ export default function AlertsScreen() {
           showsVerticalScrollIndicator={false}
         >
           <Text style={styles.alertsTitle}>
-            {alerts.length} {alerts.length > 1 ? 'alertes actives' : 'alerte active'}
+            {otherAlerts.length} {otherAlerts.length > 1 ? 'alertes actives' : 'alerte active'}
           </Text>
-          {alerts.map((user) => (
+          {otherAlerts.map((user) => (
             <View key={user.id}>
               {renderAlertItem({ item: user })}
             </View>

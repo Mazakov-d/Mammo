@@ -14,7 +14,7 @@ import { Stack, useRouter } from "expo-router";
 import { AntDesign, Feather, MaterialIcons } from "@expo/vector-icons";
 import { Colors } from "@/constants/Colors";
 import { supabase } from "@/lib/supabase";
-import { useAuth } from "@/provider/AuthProvider";
+import { useAuthStore} from "@/store/useAuthStore";
 import * as ImagePicker from 'expo-image-picker';
 
 const { width, height } = Dimensions.get("window");
@@ -30,7 +30,7 @@ interface Profile {
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const { session } = useAuth();
+  const session = useAuthStore.getState().session;
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
