@@ -168,7 +168,6 @@ export default function Index() {
     }
   }, [myLocation]);
 
-
   const renderUserMarkers = useCallback(() => {
     console.log("🔍 renderUserMarkers called - userLocations:", userLocations.length);
     console.log("📊 Valid coordinates:", userLocations.filter(loc => 
@@ -206,13 +205,15 @@ export default function Index() {
       const lastSeen = new Date(userLocation.updated_at);
       const minutesAgo = Math.floor((Date.now() - lastSeen.getTime()) / 60000);
 
-		let timeDisplay;
-		if (minutesAgo < 1) timeDisplay = "à l'instant";
-		else if (minutesAgo < 60) timeDisplay = `il y a ${minutesAgo}min`;
-		else timeDisplay = `il y a ${Math.floor(minutesAgo / 60)}h`;
+      let timeDisplay;
+      if (minutesAgo < 1) timeDisplay = "à l'instant";
+      else if (minutesAgo < 60) timeDisplay = `il y a ${minutesAgo}min`;
+      else timeDisplay = `il y a ${Math.floor(minutesAgo / 60)}h`;
 
-		return (
-			<Marker
+      console.log("✅ Returning user pin:", userName);
+      return (
+
+        <Marker
 				key={userLocation.user_id}
 				coordinate={{
 					latitude: userLocation.latitude,
@@ -261,9 +262,12 @@ export default function Index() {
 					)}
 				</View>
 			</Marker>
-		);
-	});
-  }, [userLocations, alerts]);
+      );
+    }).filter(marker => marker !== null);
+    
+    console.log("🎯 Final markers count:", markers.length);
+    return markers;
+  }, [userLocations, alerts, session?.user?.id]);
 
   const handleSignOut = async () => {
     supabase.auth.signOut();
