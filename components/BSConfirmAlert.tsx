@@ -10,7 +10,6 @@ import {
 } from "react-native";
 import { BottomSheetModal, BottomSheetView } from "@gorhom/bottom-sheet";
 import { Colors } from "../constants/Colors";
-import { supabase } from "@/lib/supabase";
 
 interface BSConfirmAlertProps {
   title?: string;

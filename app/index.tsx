@@ -106,6 +106,12 @@ export default function Index() {
       return null;
     }
 
+    const profile = useAuthStore.getState().profile;
+    if (profile) {
+      profile.alert_group_id = data ? data[0] : null;
+	  
+    }
+
     return data ? data[0] : null;
   };
 
@@ -355,10 +361,16 @@ export default function Index() {
                         size={24}
                         color="white"
                       />
-                      {(alerts.filter((alert) => alert.creator_id != session.user.id)).length > 0 && (
+                      {alerts.filter(
+                        (alert) => alert.creator_id != session.user.id
+                      ).length > 0 && (
                         <View style={styles.alertBadge}>
                           <Text style={styles.alertBadgeText}>
-                            {(alerts.filter((alert) => alert.creator_id != session.user.id)).length}
+                            {
+                              alerts.filter(
+                                (alert) => alert.creator_id != session.user.id
+                              ).length
+                            }
                           </Text>
                         </View>
                       )}
