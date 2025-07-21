@@ -3,9 +3,7 @@ import { View, Text, StyleSheet, Image, Pressable, FlatList, ScrollView } from "
 import { Stack, useRouter } from "expo-router";
 import { Colors } from "@/constants/Colors";
 import { AntDesign, Feather } from "@expo/vector-icons";
-import { locationTracker } from "@/lib/locationTracker";
 import { Alert } from "@/types/Alert";
-import { Profile } from "@/types/Profile";
 import { useAlertsStore } from "@/store/useAlertsStore";
 
 export default function AlertsScreen() {
