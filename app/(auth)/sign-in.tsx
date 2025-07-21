@@ -11,11 +11,10 @@ import {
   Platform,
   Dimensions,
   Image,
-  Pressable,
 } from "react-native";
-import { FontAwesome6, Feather, MaterialIcons } from "@expo/vector-icons";
+import { FontAwesome6, Feather } from "@expo/vector-icons";
 import { Colors } from "@/constants/Colors";
-import { Link, Stack, useRouter } from "expo-router";
+import { Stack, useRouter } from "expo-router";
 import { supabase } from "@/lib/supabase";
 
 const { width, height } = Dimensions.get("window");

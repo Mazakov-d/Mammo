@@ -30,7 +30,7 @@ export class LocationTracker {
       {
         accuracy: Location.Accuracy.Balanced,
         timeInterval: 300000, // toutes les 5 minutes
-        distanceInterval: 150, // à chaque changement
+        distanceInterval: 150,
       },
       this.handleLocationUpdate.bind(this)
     );

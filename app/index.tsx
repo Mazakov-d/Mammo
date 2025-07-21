@@ -23,19 +23,17 @@ import BSConfirmStop from "../components/BSConfirmStop";
 import { Colors, Layout } from "../constants/Colors";
 import { BottomSheetModal } from "@gorhom/bottom-sheet";
 import { AntDesign, Fontisto, Feather } from "@expo/vector-icons";
-import { useAuth } from "@/provider/AuthProvider";
+import { useAuthStore } from "@/store/useAuthStore";
 import { Redirect } from "expo-router";
 import { supabase } from "@/lib/supabase";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAlertsStore } from "../store/useAlertsStore";
 import { useLocationStore } from "../store/useUserLocationsStore";
-import { UserLocation } from "@/types/UserLocation";
 import { locationTracker } from "@/lib/locationTracker";
-import type { UserLocationChangeEvent } from "react-native-maps";
 
 export default function Index() {
   const router = useRouter();
-  const { session } = useAuth();
+  const session = useAuthStore.getState().session;
   if (!session) {
     return <Redirect href="./(auth)/sign-in" />;
   }
@@ -43,8 +41,12 @@ export default function Index() {
     useAlertsStore();
   const insets = useSafeAreaInsets();
 
-  const { myLocation, userLocations, fetchVisibleLocations, subscribeToLocationChanges } =
-    useLocationStore();
+  const {
+    myLocation,
+    userLocations,
+    fetchVisibleLocations,
+    subscribeToLocationChanges,
+  } = useLocationStore();
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [onAlert, setOnAlert] = useState(false);
   const [BSConfirmAlertMounted, setBSConfirmAlertMounted] = useState(false);
@@ -169,106 +171,141 @@ export default function Index() {
   }, [myLocation]);
 
   const renderUserMarkers = useCallback(() => {
-    console.log("🔍 renderUserMarkers called - userLocations:", userLocations.length);
-    console.log("📊 Valid coordinates:", userLocations.filter(loc => 
-      loc.latitude && loc.longitude && 
-      !isNaN(loc.latitude) && !isNaN(loc.longitude)
-    ).length);
-    
-    const markers = userLocations.map((userLocation) => {
-      console.log("📍 Processing user:", userLocation.profiles?.full_name, "ID:", userLocation.user_id);
-      console.log("📍 Coords:", userLocation.latitude, userLocation.longitude);
-      
-      if (userLocation.user_id === session?.user?.id) {
-        console.log("❌ Skipping own location");
-        return null;
-      }
+    console.log(
+      "🔍 renderUserMarkers called - userLocations:",
+      userLocations.length
+    );
+    console.log(
+      "📊 Valid coordinates:",
+      userLocations.filter(
+        (loc) =>
+          loc.latitude &&
+          loc.longitude &&
+          !isNaN(loc.latitude) &&
+          !isNaN(loc.longitude)
+      ).length
+    );
 
-      // Vérifier les coordonnées
-      if (!userLocation.latitude || !userLocation.longitude || 
-          isNaN(userLocation.latitude) || isNaN(userLocation.longitude)) {
-        console.log("❌ Invalid coordinates for user:", userLocation.profiles?.full_name);
-        return null;
-      }
+    const markers = userLocations
+      .map((userLocation) => {
+        console.log(
+          "📍 Processing user:",
+          userLocation.profiles?.full_name,
+          "ID:",
+          userLocation.user_id
+        );
+        console.log(
+          "📍 Coords:",
+          userLocation.latitude,
+          userLocation.longitude
+        );
 
-      let isAlert = false;
-      alerts.forEach((alert) => {
-        if (
-          alert.creator_id === userLocation.user_id &&
-          alert.status === "active"
-        ) {
-          isAlert = true;
+        if (userLocation.user_id === session?.user?.id) {
+          console.log("❌ Skipping own location");
+          return null;
         }
-      });
-      
-      const userName = userLocation.profiles?.full_name || "Utilisateur";
-      const lastSeen = new Date(userLocation.updated_at);
-      const minutesAgo = Math.floor((Date.now() - lastSeen.getTime()) / 60000);
 
-		if (Math.floor(minutesAgo / 60) >= 24) {
-			return null;
-		}
+        // Vérifier les coordonnées
+        if (
+          !userLocation.latitude ||
+          !userLocation.longitude ||
+          isNaN(userLocation.latitude) ||
+          isNaN(userLocation.longitude)
+        ) {
+          console.log(
+            "❌ Invalid coordinates for user:",
+            userLocation.profiles?.full_name
+          );
+          return null;
+        }
 
-      let timeDisplay;
-      if (minutesAgo < 1) timeDisplay = "à l'instant";
-      else if (minutesAgo < 60) timeDisplay = `il y a ${minutesAgo}min`;
-      else timeDisplay = `il y a ${Math.floor(minutesAgo / 60)}h`;
+        let isAlert = false;
+        alerts.forEach((alert) => {
+          if (
+            alert.creator_id === userLocation.user_id &&
+            alert.status === "active"
+          ) {
+            isAlert = true;
+          }
+        });
 
-      console.log("✅ Returning user pin:", userName);
-      return (
+        const userName = userLocation.profiles?.full_name || "Utilisateur";
+        const lastSeen = new Date(userLocation.updated_at);
+        const minutesAgo = Math.floor(
+          (Date.now() - lastSeen.getTime()) / 60000
+        );
 
-        <Marker
-				key={userLocation.user_id}
-				coordinate={{
-					latitude: userLocation.latitude,
-					longitude: userLocation.longitude,
-				}}
-				title={isAlert ? `🚨 ${userName}` : userName}
-				description={
-					isAlert
-						? `EN ALERTE! (${timeDisplay})`
-						: `En ligne (${timeDisplay})`
-				}
-			>
-				<View style={{
-					width: 40,
-					height: 40,
-					borderRadius: 20,
-					backgroundColor: Colors.orange,
-					borderWidth: 3,
-					borderColor: isAlert ? Colors.red : Colors.orange,
-					overflow: 'hidden',
-					shadowColor: '#000',
-					shadowOffset: { width: 0, height: 2 },
-					shadowOpacity: 0.3,
-					shadowRadius: 4,
-					elevation: 5,
-					justifyContent: 'center',
-					alignItems: 'center',
-				}}>
-					{userLocation.profiles?.avatar_url ? (
-						<Image
-							source={{ uri: userLocation.profiles.avatar_url }}
-							style={{
-								width: '100%',
-								height: '100%',
-							}}
-							resizeMode="cover"
-						/>
-					) : (
-						<Text style={{
-							fontSize: 20,
-							fontWeight: 'bold',
-							color: isAlert ? Colors.red : Colors.white,
-						}}>
-							{userName.charAt(0).toUpperCase()}
-						</Text>
-					)}
-				</View>
-			</Marker>
-      );
-    }).filter(marker => marker !== null);
-    
+        if (Math.floor(minutesAgo / 60) >= 24) {
+          console.warn(
+            `User ${userName} has not been seen for more than 24 hours, skipping marker`
+          );
+          return null;
+        }
+
+        let timeDisplay;
+        if (minutesAgo < 1) timeDisplay = "à l'instant";
+        else if (minutesAgo < 60) timeDisplay = `il y a ${minutesAgo}min`;
+        else timeDisplay = `il y a ${Math.floor(minutesAgo / 60)}h`;
+
+        console.log("✅ Returning user pin:", userName);
+        return (
+          <Marker
+            key={userLocation.user_id}
+            coordinate={{
+              latitude: userLocation.latitude,
+              longitude: userLocation.longitude,
+            }}
+            title={isAlert ? `🚨 ${userName}` : userName}
+            description={
+              isAlert
+                ? `EN ALERTE! (${timeDisplay})`
+                : `En ligne (${timeDisplay})`
+            }
+          >
+            <View
+              style={{
+                width: 40,
+                height: 40,
+                borderRadius: 20,
+                backgroundColor: Colors.orange,
+                borderWidth: 3,
+                borderColor: isAlert ? Colors.red : Colors.orange,
+                overflow: "hidden",
+                shadowColor: "#000",
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.3,
+                shadowRadius: 4,
+                elevation: 5,
+                justifyContent: "center",
+                alignItems: "center",
+              }}
+            >
+              {userLocation.profiles?.avatar_url ? (
+                <Image
+                  source={{ uri: userLocation.profiles.avatar_url }}
+                  style={{
+                    width: "100%",
+                    height: "100%",
+                  }}
+                  resizeMode="cover"
+                />
+              ) : (
+                <Text
+                  style={{
+                    fontSize: 20,
+                    fontWeight: "bold",
+                    color: isAlert ? Colors.red : Colors.white,
+                  }}
+                >
+                  {userName.charAt(0).toUpperCase()}
+                </Text>
+              )}
+            </View>
+          </Marker>
+        );
+      })
+      .filter((marker) => marker !== null);
+
     console.log("🎯 Final markers count:", markers.length);
     return markers;
   }, [userLocations, alerts, session?.user?.id]);
@@ -318,10 +355,10 @@ export default function Index() {
                         size={24}
                         color="white"
                       />
-                      {alerts.length > 0 && (
+                      {(alerts.filter((alert) => alert.creator_id != session.user.id)).length > 0 && (
                         <View style={styles.alertBadge}>
                           <Text style={styles.alertBadgeText}>
-                            {alerts.length}
+                            {(alerts.filter((alert) => alert.creator_id != session.user.id)).length}
                           </Text>
                         </View>
                       )}
