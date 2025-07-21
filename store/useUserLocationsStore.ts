@@ -26,11 +26,6 @@ export const useLocationStore = create<LocationState>((set, get) => ({
     set({ isLoading: true, error: null });
 
     try {
-    //   const {
-    //     data: { user },
-    //   } = await supabase.auth.getUser();
-    //   if (!user) throw new Error("Utilisateur non connecté");
-
       // Une seule requête ! RLS fait tout le filtrage automatiquement
       console.log("supabase fetch locs");
       const { data: locations, error } = await supabase
@@ -51,15 +46,8 @@ export const useLocationStore = create<LocationState>((set, get) => ({
 
       if (error) throw error;
 
-      // Traitement local minimal
-      const processedData = (locations || []).map((location) => ({
-        ...location,
-      }));
-
-      console.log("locations:", JSON.stringify(processedData, null, 2));
-
       set({
-        userLocations: processedData,
+        userLocations: locations as UserLocation[],
         isLoading: false,
       });
     } catch (error: any) {
