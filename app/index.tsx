@@ -1,6 +1,6 @@
 // app/index.tsx - Updated with friends system
 
-import React, { useRef, useCallback, useState, useEffect } from "react";
+import React, { useRef, useCallback, useState, useEffect, useMemo } from "react";
 import {
   Text,
   View,
@@ -24,11 +24,15 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAlertsStore } from "../store/useAlertsStore";
 import { useLocationStore } from "../store/useUserLocationsStore";
 import { locationTracker } from "@/lib/locationTracker";
+import { emergencyOfflineManager } from "@/lib/emergencyOfflineManager";
 import { useInitContacts } from "@/hooks/useInitContacts";
+import { useMapContext } from "../contexts/MapContext";
 
 export default function Index() {
   const router = useRouter();
-  const session = useAuthStore.getState().session;
+  const session = useAuthStore((s) => s.session);
+  const profile = useAuthStore((s) => s.profile);
+  const { targetLocation, clearTargetLocation } = useMapContext();
 
   if (!session) {
     return <Redirect href="./(auth)/sign-in" />;
@@ -42,7 +46,7 @@ export default function Index() {
     fetchVisibleLocations,
     subscribeToLocationChanges,
   } = useLocationStore();
-  const [onAlert, setOnAlert] = useState(false);
+  const onAlert = useMemo(() => !!profile?.alert_group_id, [profile?.alert_group_id]);
   const [BSConfirmAlertMounted, setBSConfirmAlertMounted] = useState(false);
   const [showStopSheet, setShowStopSheet] = useState(false);
 
@@ -59,18 +63,16 @@ export default function Index() {
     fetchAlerts();
 
     const alertsSubscription = subscribeAlerts();
-    const locationsSubscription = subscribeToLocationChanges();
+    const locationsUnsubscribe = subscribeToLocationChanges();
     
     return () => {
       locationTracker.stopTracking();
       alertsSubscription?.unsubscribe();
-      locationsSubscription();
+      locationsUnsubscribe();
     };
   }, []);
 
-  useEffect(() => {
-    setOnAlert(useAuthStore.getState().profile?.alert_group_id ? true : false);
-  }, [useAuthStore.getState().profile?.alert_group_id]);
+  // onAlert derives from profile via useMemo above
 
   const handlePresentModalPress = useCallback(() => {
     setBSConfirmAlertMounted(true);
@@ -89,7 +91,8 @@ export default function Index() {
       .from("alerts")
       .insert([
         {
-          creator_id: session.user.id,
+          creator_id: session!.user.id,
+          status: "active",
         },
       ])
       .select();
@@ -99,56 +102,60 @@ export default function Index() {
       return null;
     }
 
-    const { error: profileError } = await useAuthStore
-      .getState()
-      .updateProfile({
-        alert_group_id: alertData ? alertData[0].id : null,
-      });
+    const { error: profileError } = await useAuthStore.getState().updateProfile({
+      alert_group_id: alertData ? alertData[0].id : null,
+    });
 
     if (profileError) {
       console.error("Error creating alert:", profileError);
       return null;
     }
 
-    console.log(alertData ? [0] : null);
+    console.log(alertData?.[0]);
 
     return alertData ? alertData[0] : null;
   };
 
   const archiveAlertDB = async () => {
+    const currentAlertId = profile?.alert_group_id;
+    if (!currentAlertId) return null;
     const { data, error: alertsError } = await supabase
       .from("alerts")
       .update({ status: "archived" })
-      .eq("creator_id", session.user.id)
-      .select(); // optional: to get the updated row
+      .eq("id", currentAlertId)
+      .eq("status", "active")
+      .select();
 
     if (alertsError) {
       console.error("Failed to update alert status:", alertsError.message);
       return null;
     }
 
-    const { error: profileError } = await useAuthStore
-      .getState()
-      .updateProfile({
-        alert_group_id: null,
-      });
+    const { error: profileError } = await useAuthStore.getState().updateProfile({
+      alert_group_id: null,
+    });
 
     if (profileError) {
       console.error("Error creating alert:", profileError);
       return null;
     }
 
-    return data[0]; // updated row
+    await fetchAlerts();
+    return data?.[0] || null;
   };
 
   const handleConfirmModalPress = useCallback(async () => {
     try {
       console.log("🚨 ACTIVATING ALERT MODE");
-
-      setOnAlert(true);
       setBSConfirmAlertMounted(false);
       bottomSheetModalRef.current?.dismiss();
-      createAlertDB();
+      await createAlertDB();
+      // Switch trackers: stop background tracking while in emergency
+      locationTracker.stopTracking();
+      // Start emergency high-accuracy/offline tracking
+      emergencyOfflineManager.startEmergencyAlert();
+      // Ensure alerts list reflects the new alert quickly
+      fetchAlerts();
     } catch (error) {
       console.error("❌ Error activating alert mode:", error);
       Alert.alert("Erreur", "Impossible d'activer le mode alerte");
@@ -159,11 +166,13 @@ export default function Index() {
     try {
       console.log("✅ DEACTIVATING ALERT MODE");
       console.log("📅 Returning to background mode");
-
-      setOnAlert(false);
       setShowStopSheet(false);
       stopSheetRef.current?.dismiss();
-      archiveAlertDB();
+      await archiveAlertDB();
+      // Stop emergency tracking
+      emergencyOfflineManager.stopEmergencyAlert();
+      // Resume background tracking
+      locationTracker.startTracking();
     } catch (error) {
       console.error("❌ Error deactivating alert mode:", error);
       Alert.alert("Erreur", "Impossible de désactiver l'alerte");
@@ -176,16 +185,29 @@ export default function Index() {
     }
   }, []);
 
+  // Update the map region effect to use both myLocation and targetLocation
   useEffect(() => {
-    if (myLocation && mapRef.current) {
-      mapRef.current.animateToRegion({
-        latitude: myLocation.coords.latitude, // Direct access to latitude
-        longitude: myLocation.coords.longitude, // Direct access to longitude
-        latitudeDelta: 0.0922,
-        longitudeDelta: 0.0421,
-      });
+    if (mapRef.current) {
+      if (targetLocation) {
+        // If we have a target location, go there
+        console.log('📍 Navigating to target location:', targetLocation);
+        mapRef.current.animateToRegion({
+          latitude: targetLocation.latitude,
+          longitude: targetLocation.longitude,
+          latitudeDelta: 0.005, // Zoom in more when viewing specific location
+          longitudeDelta: 0.005,
+        });
+      } else if (myLocation) {
+        // Otherwise, use user's location
+        mapRef.current.animateToRegion({
+          latitude: myLocation.coords.latitude,
+          longitude: myLocation.coords.longitude,
+          latitudeDelta: 0.0922,
+          longitudeDelta: 0.0421,
+        });
+      }
     }
-  }, [myLocation]);
+  }, [myLocation, targetLocation]);
 
   const renderUserMarkers = useCallback(() => {
     console.log(
@@ -327,9 +349,24 @@ export default function Index() {
     return markers;
   }, [userLocations, alerts, session?.user?.id]);
 
-  //   const handleSignOut = async () => {
-  //     supabase.auth.signOut();
-  //   };
+  // Add a banner to show when viewing someone's location
+  const renderTargetLocationHeader = () => {
+    if (!targetLocation) return null;
+    
+    return (
+      <View style={styles.targetLocationBanner}>
+        <Text style={styles.targetLocationText}>
+          📍 Localisation de {targetLocation.userName || 'Utilisateur'}
+        </Text>
+        <Pressable 
+          onPress={clearTargetLocation}
+          style={styles.clearLocationButton}
+        >
+          <Text style={styles.clearLocationText}>Retour</Text>
+        </Pressable>
+      </View>
+    );
+  };
 
   return (
     <View style={styles.container}>
@@ -473,8 +510,9 @@ export default function Index() {
         }}
       />
 
+      {renderTargetLocationHeader()}
+
       <MapView
-        // key={`map-${userLocations.length}-${alerts.length}`}
         ref={mapRef}
         style={styles.map}
         showsBuildings={false}
@@ -492,6 +530,37 @@ export default function Index() {
         }}
       >
         {userLocations.length > 0 && renderUserMarkers()}
+        
+        {/* Add a special marker for the target location */}
+        {targetLocation && (
+          <Marker
+            coordinate={{
+              latitude: targetLocation.latitude,
+              longitude: targetLocation.longitude,
+            }}
+            title={`📍 ${targetLocation.userName || 'Utilisateur'}`}
+          >
+            <View
+              style={{
+                width: 50,
+                height: 50,
+                borderRadius: 25,
+                backgroundColor: Colors.red,
+                borderWidth: 4,
+                borderColor: Colors.white,
+                justifyContent: "center",
+                alignItems: "center",
+                shadowColor: "#000",
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: 0.4,
+                shadowRadius: 6,
+                elevation: 8,
+              }}
+            >
+              <AntDesign name="warning" size={24} color="white" />
+            </View>
+          </Marker>
+        )}
       </MapView>
 
       {onAlert === false && (
@@ -602,5 +671,39 @@ const styles = StyleSheet.create({
     height: 6,
     borderRadius: 3,
     backgroundColor: "white",
+  },
+  targetLocationBanner: {
+    position: 'absolute',
+    top: 100,
+    left: 20,
+    right: 20,
+    backgroundColor: Colors.orange,
+    padding: 12,
+    borderRadius: 8,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    zIndex: 1000,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  targetLocationText: {
+    color: 'white',
+    fontWeight: 'bold',
+    flex: 1,
+  },
+  clearLocationButton: {
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 4,
+  },
+  clearLocationText: {
+    color: 'white',
+    fontWeight: 'bold',
+    fontSize: 12,
   },
 });

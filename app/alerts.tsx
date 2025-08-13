@@ -2,18 +2,22 @@ import React, { useState, useEffect } from "react";
 import { View, Text, StyleSheet, Image, Pressable, FlatList, ScrollView } from "react-native";
 import { Stack, useRouter } from "expo-router";
 import { Colors } from "@/constants/Colors";
+import { supabase } from "@/lib/supabase";
 import { AntDesign, Feather } from "@expo/vector-icons";
 import { Alert } from "@/types/Alert";
 import { useAlertsStore } from "@/store/useAlertsStore";
-import { useAuthStore } from "@/store/useAuthStore"
+import { useAuthStore } from "@/store/useAuthStore";
+import { useLocationStore } from "@/store/useUserLocationsStore";
+import { useMapContext } from "@/contexts/MapContext";
 
 export default function AlertsScreen() {
   const router = useRouter();
   const { alerts } = useAlertsStore();
-  const session = useAuthStore.getState().session;
+  const { userLocations } = useLocationStore();
+  const { setTargetLocation } = useMapContext();
+  const session = useAuthStore((s) => s.session);
 
   const otherAlerts = alerts.filter((alert) => alert.creator_id != session?.user.id);
-
 
   const calculateTimeAgo = (timestamp: string) => {
     const lastSeen = new Date(timestamp);
@@ -22,6 +26,38 @@ export default function AlertsScreen() {
     if (minutesAgo < 1) return 'à l\'instant';
     else if (minutesAgo < 60) return `il y a ${minutesAgo} min`;
     else return `il y a ${Math.floor(minutesAgo / 60)}h`;
+  };
+
+  const handleViewOnMap = async (alert: Alert) => {
+    // Try in-memory first
+    let userLocation = userLocations.find((loc) => loc.user_id === alert.creator_id);
+
+    // Fallback: fetch last known location for the user
+    if (!userLocation) {
+      try {
+        const { data, error } = await supabase
+          .from('user_locations')
+          .select('*')
+          .eq('user_id', alert.creator_id)
+          .order('updated_at', { ascending: false })
+          .limit(1)
+          .single();
+        if (!error && data) {
+          userLocation = data as any;
+        }
+      } catch (err) {
+        // ignore
+      }
+    }
+
+    if (userLocation && userLocation.latitude && userLocation.longitude) {
+      setTargetLocation({
+        latitude: userLocation.latitude,
+        longitude: userLocation.longitude,
+        userName: alert.profiles?.full_name || 'Utilisateur',
+      });
+    }
+    router.back();
   };
 
   const renderAlertItem = ({ item }: { item: Alert}) => {
@@ -42,7 +78,7 @@ export default function AlertsScreen() {
         </View>
         <Pressable
           style={styles.viewMapButton}
-          onPress={() => router.back()}
+          onPress={() => handleViewOnMap(item)}
         >
           <Text style={styles.viewMapText}>Voir sur la carte</Text>
         </Pressable>

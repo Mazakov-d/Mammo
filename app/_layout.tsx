@@ -1,20 +1,21 @@
 import { Stack } from "expo-router";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
-import AuthProvider from "@/provider/AuthProvider";
 import { useAuthStore } from "@/store/useAuthStore";
-import { useEffect}  from "react";
+import { useEffect } from "react";
+import { MapProvider } from "@/contexts/MapContext";
 
 export default function RootLayout() {
-  const {initialize, isLoading} = useAuthStore();
+  const { initialize, isLoading } = useAuthStore();
 
   useEffect(() => {
     initialize();
-  }, [isLoading]);
+  }, []);
 
   return (
-    <GestureHandlerRootView>
+    <GestureHandlerRootView style={{ flex: 1 }}>
       <BottomSheetModalProvider>
+        <MapProvider>
           <Stack>
             <Stack.Screen name="index" />
             <Stack.Screen name="(auth)" options={{ headerShown: false }} />
@@ -22,8 +23,8 @@ export default function RootLayout() {
             <Stack.Screen name="alerts" />
             <Stack.Screen name="contacts" options={{ headerShown: false }} />
           </Stack>
+        </MapProvider>
       </BottomSheetModalProvider>
     </GestureHandlerRootView>
   );
 }
-

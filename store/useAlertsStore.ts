@@ -35,7 +35,12 @@ export const useAlertsStore = create<AlertsState>((set, get) => ({
           avatar_url,
           updated_at,
           alert_group_id
-        )
+        ),
+		user_locations (
+			latitude,
+			longitude,
+			updated_at
+		)
       `
       )
       .eq("status", "active")
