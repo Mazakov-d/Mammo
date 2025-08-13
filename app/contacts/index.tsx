@@ -138,7 +138,7 @@ export default function UsersScreen() {
         {
           text: "Refuser",
           style: "destructive",
-          onPress: () => declineInvitation(contact.contactProfile.id),
+          onPress: () => declineInvitation(contact.user_id),
         },
       ]
     );
@@ -162,17 +162,19 @@ export default function UsersScreen() {
     );
   };
 
-  const renderContact = ({ item }: { item: Contact }) => {
-    const contact = item;
-    const isUserOnAlert = alerts.some(
-      (alert) => alert.creator_id === contact.contact_id
-    );
-    const sentInvitation =
-      contact.status === "pending" && contact.user_id === session?.user.id;
-    const receivedInvitation =
-      contact.status === "pending" && contact.contact_id === session?.user.id;
-
-    const renderActionButtons = () => {
+     const renderContact = ({ item }: { item: Contact }) => {
+     const contact = item;
+     const isUserOnAlert = alerts.some(
+       (alert) => alert.creator_id === contact.contact_id
+     );
+     const sentInvitation =
+       contact.status === "pending" && contact.user_id === session?.user.id;
+     const receivedInvitation =
+       contact.status === "pending" && contact.contact_id === session?.user.id;
+     const displayedProfile = receivedInvitation ? contact.userProfile : contact.contactProfile;
+ 
+     const renderActionButtons = () => {
+      console.log("Rendering action buttons for:", contact.status);
       switch (contact.status) {
         case "accepted":
           return (
@@ -184,38 +186,37 @@ export default function UsersScreen() {
             </TouchableOpacity>
           );
 
-        case "received":
+        case "pending":
           return (
-            <View style={styles.buttonGroup}>
+            contact.contact_id === session?.user.id ? (
+              <View style={styles.buttonGroup}>
+                <TouchableOpacity
+                  style={[
+                    styles.actionButton,
+                    { backgroundColor: "#4CAF50", marginRight: 8 },
+                  ]}
+                  onPress={() => acceptInvitation(contact.user_id)}
+                >
+                  <MaterialIcons name="check" size={20} color="white" />
+                  <Text style={styles.actionButtonText}>Accepter</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.actionButton, { backgroundColor: "#f44336" }]}
+                  onPress={() => confirmDeclineInvitation(contact)}
+                >
+                  <MaterialIcons name="close" size={20} color="white" />
+                  <Text style={styles.actionButtonText}>Refuser</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
               <TouchableOpacity
-                style={[
-                  styles.actionButton,
-                  { backgroundColor: "#4CAF50", marginRight: 8 },
-                ]}
-                onPress={() => acceptInvitation(contact.contactProfile.id)}
+                style={[styles.actionButton, { backgroundColor: "#ff9800" }]}
+                onPress={() => confirmCancelInvitation(contact)}
               >
-                <MaterialIcons name="check" size={20} color="white" />
-                <Text style={styles.actionButtonText}>Accepter</Text>
+                <MaterialIcons name="cancel" size={20} color="white" />
+                <Text style={styles.actionButtonText}>Annuler</Text>
               </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.actionButton, { backgroundColor: "#f44336" }]}
-                onPress={() => confirmDeclineInvitation(contact)}
-              >
-                <MaterialIcons name="close" size={20} color="white" />
-                <Text style={styles.actionButtonText}>Refuser</Text>
-              </TouchableOpacity>
-            </View>
-          );
-
-        case "sent":
-          return (
-            <TouchableOpacity
-              style={[styles.actionButton, { backgroundColor: "#ff9800" }]}
-              onPress={() => confirmCancelInvitation(contact)}
-            >
-              <MaterialIcons name="cancel" size={20} color="white" />
-              <Text style={styles.actionButtonText}>Annuler</Text>
-            </TouchableOpacity>
+            )
           );
 
         default:
@@ -248,15 +249,15 @@ export default function UsersScreen() {
             </Text>
           </View>
         );
-      } else if (sentInvitation) {
-        return (
-          <Text style={styles.invitationText}>
-            Vous a envoyé une invitation
-          </Text>
-        );
-      } else if (receivedInvitation) {
-        return <Text style={styles.pendingText}>En attente de réponse</Text>;
-      }
+             } else if (receivedInvitation) {
+         return (
+           <Text style={styles.invitationText}>
+             Vous a envoyé une invitation
+           </Text>
+         );
+       } else if (sentInvitation) {
+         return <Text style={styles.pendingText}>En attente de réponse</Text>;
+       }
       return null;
     };
 
@@ -271,18 +272,18 @@ export default function UsersScreen() {
         }
       >
         <View style={styles.avatarContainer}>
-          {contact.contactProfile.avatar_url ? (
-            <Image
-              source={{ uri: contact.contactProfile.avatar_url }}
-              style={styles.avatar}
-            />
-          ) : (
-            <View style={[styles.avatar, styles.defaultAvatar]}>
-              <Text style={styles.avatarText}>
-                {contact.contactProfile.full_name.charAt(0).toUpperCase()}
-              </Text>
-            </View>
-          )}
+                     {displayedProfile.avatar_url ? (
+             <Image
+               source={{ uri: displayedProfile.avatar_url }}
+               style={styles.avatar}
+             />
+           ) : (
+             <View style={[styles.avatar, styles.defaultAvatar]}>
+               <Text style={styles.avatarText}>
+                 {displayedProfile.full_name.charAt(0).toUpperCase()}
+               </Text>
+             </View>
+           )}
           {contact.status === "accepted" && (
             <View
               style={[
@@ -296,7 +297,7 @@ export default function UsersScreen() {
         </View>
 
         <View style={styles.contactInfo}>
-          <Text style={styles.contactName}>{contact.contactProfile.full_name}</Text>
+                     <Text style={styles.contactName}>{displayedProfile.full_name}</Text>
           {renderStatusInfo()}
         </View>
 
@@ -411,9 +412,9 @@ export default function UsersScreen() {
           <SectionList
             sections={filteredSections}
             renderItem={renderContact}
-            renderSectionHeader={renderSectionHeader}
-            keyExtractor={(contact) => contact.contact_id}
-            contentContainerStyle={styles.listContent}
+                         renderSectionHeader={renderSectionHeader}
+             keyExtractor={(contact) => `${contact.user_id}-${contact.contact_id}`}
+             contentContainerStyle={styles.listContent}
             showsVerticalScrollIndicator={false}
             refreshControl={
               <RefreshControl

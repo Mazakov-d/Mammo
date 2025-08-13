@@ -52,6 +52,14 @@ export const useContactsStore = create<ContactsState>((set, get) => ({
           last_name,
           avatar_url,
           updated_at
+        ),
+        userProfile:profiles!user_id (
+          id,
+          full_name,
+          first_name,
+          last_name,
+          avatar_url,
+          updated_at
         )
       `
     );
@@ -94,13 +102,14 @@ export const useContactsStore = create<ContactsState>((set, get) => ({
   },
 
   sendInvitation: async (friendId: string) => {
-    if (!get().session?.user?.id) return;
+    const currentUserId = useAuthStore.getState().session?.user?.id;
+    if (!currentUserId) return;
 
     try {
       const { error } = await supabase
         .from('contacts')
         .insert({
-          user_id: get().session?.user.id,
+          user_id: currentUserId,
           contact_id: friendId,
           status: 'pending'
         });
@@ -117,14 +126,15 @@ export const useContactsStore = create<ContactsState>((set, get) => ({
   },
 
   acceptInvitation: async (contactId: string | undefined) => {
-    if (!get().session?.user?.id) return;
+    const currentUserId = useAuthStore.getState().session?.user?.id;
+    if (!currentUserId || !contactId) return;
     try {
-      // Update the contact to accepted (trigger will create bidirectional relationship)
       const { error } = await supabase
         .from("contacts")
         .update({ status: "accepted" })
         .eq("user_id", contactId)
-        .eq("contact_id", get().session?.user.id);
+        .eq("contact_id", currentUserId)
+        .eq("status", "pending");
 
       if (error) throw error;
 
@@ -137,15 +147,16 @@ export const useContactsStore = create<ContactsState>((set, get) => ({
   },
 
   declineInvitation: async (contactId: string | undefined) => {
-    if (!get().session?.user?.id) return;
+    const currentUserId = useAuthStore.getState().session?.user?.id;
+
+    if (!currentUserId || !contactId) return;
 
     try {
-      // Delete the invitation
       const { error } = await supabase
         .from("contacts")
         .delete()
         .eq("user_id", contactId)
-        .eq("contact_id", get().session?.user.id)
+        .eq("contact_id", currentUserId)
         .eq("status", "pending");
 
       if (error) throw error;
@@ -159,14 +170,14 @@ export const useContactsStore = create<ContactsState>((set, get) => ({
   },
 
   cancelInvitation: async (contactId: string | undefined) => {
-    if (!get().session?.user?.id) return;
+    const currentUserId = useAuthStore.getState().session?.user?.id;
+    if (!currentUserId || !contactId) return;
 
     try {
-      // Delete the sent invitation
       const { error } = await supabase
         .from("contacts")
         .delete()
-        .eq("user_id", get().session?.user.id)
+        .eq("user_id", currentUserId)
         .eq("contact_id", contactId)
         .eq("status", "pending");
 
@@ -181,12 +192,13 @@ export const useContactsStore = create<ContactsState>((set, get) => ({
   },
 
   deleteFriend: async (friendId: string | undefined) => {
-    if (!get().session?.user?.id) return;
+    const currentUserId = useAuthStore.getState().session?.user?.id;
+    if (!currentUserId || !friendId) return;
 
+    console.log("Deleting friend:", friendId);
     try {
-      // Use the safe deletion function
       const { data, error } = await supabase.rpc("delete_friendship_safe", {
-        p_user_id: get().session?.user.id,
+        p_user_id: currentUserId,
         p_contact_id: friendId,
       });
 
@@ -207,21 +219,21 @@ export const useContactsStore = create<ContactsState>((set, get) => ({
   },
 
   initializeSubscription: () => {
+    const currentUserId = useAuthStore.getState().session?.user?.id;
     const state = get();
 
-    if (!state.session?.user?.id || state.contactsChannel) {
+    if (!currentUserId || state.contactsChannel) {
       return;
     }
 
     const channel = supabase
-      .channel(`contacts-changes-${state.session.user.id}`)
+      .channel(`contacts-changes-${currentUserId}`)
       .on(
         "postgres_changes",
         {
           event: "*",
           schema: "public",
           table: "contacts",
-          // Pas besoin de filter, RLS s'en charge !
         },
         (payload) => {
           console.log("Contact change detected:", payload);

@@ -7,4 +7,5 @@ export interface Contact {
   updated_at: string; // timestampz
   status: string; // e.g. 'pending', 'accepted'
   contactProfile: Profile; // Optional profile information of the contact
+  userProfile: Profile; // Optional profile information of the user (sender)
 }
